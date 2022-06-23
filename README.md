@@ -139,7 +139,8 @@ accelerate launch --config_file <CONFIG_FILE>.yaml run_no_mlm_traininer.py \
     --mono_train_dir <MONOLINGUAL_DATA_DIR> \
     --it_train_dir <TRANSLATION_DATA_DIR> \
     --xlit_train_dir <TRANSLITERATION_DATA_DIR> \
-    --mono_eval_dir validation
+    --mono_eval_dir <VALIDATION_DATA_DIR> \
+    --output_dir <OUTPUT_DIR>
 ```
 
 ## Trying the model:
