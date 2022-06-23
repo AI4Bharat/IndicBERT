@@ -110,6 +110,38 @@ pip3 install torch torchvision torchaudio --extra-index-url https://download.pyt
 - Max Seq Length: 512
 - Global Batch Size: 4096
 
+### Pretraining Launch Commands
+
+Run the below file and configure the hardware environment. The command save the config file to `~/.cache/huggingface/accelerate/default_config.yaml`
+```bash
+accelerate config
+```
+
+```bash
+accelerate launch --config_file <CONFIG_FILE>.yaml run_no_mlm_traininer.py \
+    --config_name 'xlm-roberta-base' \
+    --tokenizer_name '<TOKENIZER_NAME>' \
+    --per_device_train_batch_size 8 \
+    --per_device_eval_batch_size 4 \
+    --learning_rate 0.0005 \
+    --max_train_steps 1000000 \
+    --gradient_accumulation_steps 16 \
+    --num_warmup_steps 50000 \
+    --max_seq_length 512 \
+    --line_by_line 1 \
+    --preprocessing_num_workers 128 \
+    --checkpointing_steps 50000 \
+    --with_tracking \
+    --report_to "wandb" \
+    --mono_languages "hi,en,bn,gu,ta,te,as,bd,dg,gom,kha,kn,ks,mai,ml,mni,mr,ne,or,pa,sat,sd,ur,sa" \
+    --it_languages "hi,as,bn,gu,kn,ml,mr,or,pa,ta,te" \
+    --xlit_languages "as,bn,gom,gu,hi,kn,ks,mai,ml,mni,mr,ne,or,pa,sa,sd,ta,te,ur" \
+    --mono_train_dir <MONOLINGUAL_DATA_DIR> \
+    --it_train_dir <TRANSLATION_DATA_DIR> \
+    --xlit_train_dir <TRANSLITERATION_DATA_DIR> \
+    --mono_eval_dir validation
+```
+
 ## Trying the model:
 
 <some code example which uses our python modules>
