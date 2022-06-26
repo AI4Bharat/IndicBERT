@@ -230,7 +230,7 @@ def parse_args():
         ),
     )
     parser.add_argument(
-        "--mono_languages", type=str, default=None, help="A comma separated list of languages to use for training."
+        "--monolingual_languages", type=str, default=None, help="A comma separated list of languages to use for training."
     )
     parser.add_argument(
         "--translation_languages", type=str, default=None, help="A comma separated list of languages to use for training."
@@ -240,7 +240,7 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--mono_train_dir", type=str, default=None, help="A directory containing the training data."
+        "--monolingual_train_dir", type=str, default=None, help="A directory containing the training data."
     )
     parser.add_argument(
         "--translation_train_dir", type=str, default=None, help="A directory containing the training data."
@@ -250,7 +250,7 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--hf_mono", type=str, default=None, help="A directory containing the training data."
+        "--hf_monolingual", type=str, default=None, help="A directory containing the training data."
     )
     parser.add_argument(
         "--hf_translation", type=str, default=None, help="A directory containing the training data."
@@ -265,7 +265,7 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--mono_eval_dir", type=str, default=None, help="A directory containing the training data."
+        "--monolingual_eval_dir", type=str, default=None, help="A directory containing the training data."
     )
     parser.add_argument(
         "--hf_eval", type=str, default=None, help="A directory containing the training data."
@@ -274,7 +274,7 @@ def parse_args():
     args = parser.parse_args()
 
     # Sanity checks
-    if (args.mono_train_dir is None and args.translation_train_dir is None and args.transliteration_train_dir is None) and args.full_train_dir is None:
+    if (args.monolingual_train_dir is None and args.translation_train_dir is None and args.transliteration_train_dir is None) and args.full_train_dir is None:
         raise ValueError("Need either a split dataset name full dataset")
 
     if args.push_to_hub:
@@ -390,18 +390,18 @@ def main():
             logger.info('Loaded full training data')
         else:
             # process monolingual data
-            if os.path.isdir(f'{args.hf_mono}'):
-                full_mono = load_from_disk(f'{args.hf_mono}')
+            if os.path.isdir(f'{args.hf_lingual}'):
+                full_monolingual = load_from_disk(f'{args.hf_monolingual}')
                 logger.info("Loaded Monolingual data from disk")
-            elif args.mono_train_dir:
-                mono_langs = args.mono_languages.split(',')
-                logger.info(f'Total langs: {len(mono_langs)}')
-                mono_dict = {}
+            elif args.monolingual_train_dir:
+                monolingual_langs = args.monolingual_languages.split(',')
+                logger.info(f'Total langs: {len(monolingual_langs)}')
+                monolingual_dict = {}
                 
-                for ml in mono_langs:
+                for ml in monolingual_langs:
                     logger.info(f"Currently running {ml}")
                     data_files = {
-                        f'{ml}': args.mono_train_dir + f'/{ml}.txt'
+                        f'{ml}': args.monolingual_train_dir + f'/{ml}.txt'
                     }
                     raw_datasets = load_dataset('text', data_files=data_files)
 
@@ -437,11 +437,11 @@ def main():
                             desc="Running tokenizer on dataset line_by_line",
                         )
 
-                        mono_dict[f'{ml}'] = tokenized_datasets
+                        monolingual_dict[f'{ml}'] = tokenized_datasets
 
-                full_mono = concatenate_datasets([mono_dict[f'{xx}'][f'{xx}'] for xx in mono_langs])
+                full_monolingual = concatenate_datasets([monolingual_dict[f'{xx}'][f'{xx}'] for xx in monolingual_langs])
                 # save to disk
-                full_mono.save_to_disk(f'{args.hf_mono}')
+                full_monolingual.save_to_disk(f'{args.hf_monolingual}')
 
             # process translation data
             if os.path.isdir(f'{args.hf_translation}'):
@@ -533,10 +533,10 @@ def main():
                 full_transliteration = concatenate_datasets([transliteration_dict[f'{xx}'][f'{xx}'] for xx in transliteration_langs])
                 full_transliteration.save_to_disk(f'{args.hf_transliteration}')
                 
-            logger.info(full_mono)
+            logger.info(full_monolingual)
             logger.info(full_translation)
             logger.info(full_transliteration)
-            full_train_dataset = concatenate_datasets([full_mono, full_translation, full_transliteration])
+            full_train_dataset = concatenate_datasets([full_monolingual, full_translation, full_transliteration])
             full_train_dataset.save_to_disk(f'{args.hf_full_pretrain_data}')
             logger.info('saved full train data to disk')
         
@@ -545,9 +545,9 @@ def main():
         if os.path.isdir(f'{args.hf_eval}'):
             eval_mono_dataset = load_from_disk(f'{args.hf_eval}')
         else:
-            mono_langs = args.mono_languages.split(',')
-            eval_mono_dict = {}
-            for ml in mono_langs:
+            monolingual_langs = args.monolingual_languages.split(',')
+            eval_monolingual_dict = {}
+            for ml in monolingual_langs:
                 logger.info(f"Currently running {ml}")
                 data_files = {
                     f'{ml}': args.mono_eval_dir + f'/{ml}.txt'
@@ -586,16 +586,16 @@ def main():
                         desc="Running tokenizer on dataset line_by_line",
                     )
 
-                    eval_mono_dict[f'{ml}'] = tokenized_datasets
+                    eval_monolingual_dict[f'{ml}'] = tokenized_datasets
 
-            eval_mono_dataset = concatenate_datasets([eval_mono_dict[f'{xx}'][f'{xx}'] for xx in mono_langs])
+            eval_monolingual_dataset = concatenate_datasets([eval_monolingual_dict[f'{xx}'][f'{xx}'] for xx in monolingual_langs])
             # save to disk
-            eval_mono_dataset.save_to_disk(f'{args.hf_eval}')
+            eval_monolingual_dataset.save_to_disk(f'{args.hf_eval}')
 
             
     ################ change this ########################
     train_dataset = full_train_dataset
-    eval_dataset = eval_mono_dataset
+    eval_dataset = eval_monolingual_dataset
 
     # Conditional for small test subsets
     if len(train_dataset) > 3:

@@ -136,10 +136,13 @@ accelerate launch --config_file <CONFIG_FILE>.yaml run_no_mlm_traininer.py \
     --mono_languages "hi,en,bn,gu,ta,te,as,bd,dg,gom,kha,kn,ks,mai,ml,mni,mr,ne,or,pa,sat,sd,ur,sa" \
     --it_languages "hi,as,bn,gu,kn,ml,mr,or,pa,ta,te" \
     --xlit_languages "as,bn,gom,gu,hi,kn,ks,mai,ml,mni,mr,ne,or,pa,sa,sd,ta,te,ur" \
-    --mono_train_dir <MONOLINGUAL_DATA_DIR> \
-    --it_train_dir <TRANSLATION_DATA_DIR> \
-    --xlit_train_dir <TRANSLITERATION_DATA_DIR> \
-    --mono_eval_dir <VALIDATION_DATA_DIR> \
+    --monolingual_train_dir <MONOLINGUAL_DATA_DIR> \
+    --tranlation_train_dir <TRANSLATION_DATA_DIR> \
+    --transliteration_train_dir <TRANSLITERATION_DATA_DIR> \
+    --monolingual_eval_dir <VALIDATION_DATA_DIR> \
+    --hf_monolingual <HF_MONOLINGUAL_DATA> \
+    --hf_translation <HF_TRANSLATION_DATA> \
+    --hf_transliteration <HF_TRANSLITERATION_DATA_DIR>
     --output_dir <OUTPUT_DIR>
 ```
 
