@@ -426,7 +426,7 @@ def main():
                         except:
                             logger.info(examples[text_column_name])
 
-                    tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained('abaw_tok', pretraining=True, src_lang=f'{ml}')
+                    tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained(f'{args.tokenizer_name}', pretraining=True, src_lang=f'{ml}')
                     with accelerator.main_process_first():
                         tokenized_datasets = raw_datasets.map(
                             tokenize_function,
@@ -472,7 +472,7 @@ def main():
                             logger.info(examples['src'])
                             logger.info(examples['tgt'])
                     
-                    tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained('abaw_tok', pretraining=True, src_lang=f'{il}', tgt_lang='en')
+                    tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained(f'{args.tokenizer_name}', pretraining=True, src_lang=f'{il}', tgt_lang='en')
                     with accelerator.main_process_first():
                         tokenized_datasets = raw_datasets.map(
                             tokenize_function,
@@ -517,7 +517,7 @@ def main():
                             logger.info(examples['src'])
                             logger.info(examples['tgt'])
                     
-                    tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained('abaw_tok', pretraining=True, src_lang=f'{xl}', tgt_lang='en')
+                    tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained(f'{args.tokenizer_name}', pretraining=True, src_lang=f'{xl}', tgt_lang='en')
                     with accelerator.main_process_first():
                         tokenized_datasets = raw_datasets.map(
                             tokenize_function,
@@ -575,7 +575,7 @@ def main():
                     except:
                         logger.info(examples[text_column_name])
 
-                tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained('abaw_tok', pretraining=True, src_lang=f'{ml}')
+                tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained(f'{args.tokenizer_name}', pretraining=True, src_lang=f'{ml}')
                 with accelerator.main_process_first():
                     tokenized_datasets = raw_datasets.map(
                         tokenize_function,
@@ -605,7 +605,7 @@ def main():
 
     # Data collator
     # This one will take care of randomly masking the tokens.
-    tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained('abaw_tok', pretraining=True, src_lang=f'en')
+    tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained(f'{args.tokenizer_name}', pretraining=True, src_lang=f'en')
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm_probability=args.mlm_probability)
 
     logger.info('Data collator ready!!')
