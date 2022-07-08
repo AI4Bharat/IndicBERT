@@ -333,53 +333,6 @@ def main():
             os.makedirs(args.output_dir, exist_ok=True)
     accelerator.wait_for_everyone()
 
-    # Get the datasets: you can either provide your own CSV/JSON/TXT training and evaluation files (see below)
-    # or just provide the name of one of the public datasets available on the hub at https://huggingface.co/datasets/
-    # (the dataset will be downloaded automatically from the datasets Hub).
-    #
-    # For CSV/JSON files, this script will use the column called 'text' or the first column if no column called
-    # 'text' is found. You can easily tweak this behavior (see below).
-    #
-    # In distributed training, the load_dataset function guarantee that only one local process can concurrently
-    # download the dataset.
-    if args.dataset_name is not None:
-        # Downloading and loading a dataset from the hub.
-        raw_datasets = load_dataset(args.dataset_name, args.dataset_config_name)
-        if "validation" not in raw_datasets.keys():
-            raw_datasets["validation"] = load_dataset(
-                args.dataset_name,
-                args.dataset_config_name,
-                split=f"train[:{args.validation_split_percentage}%]",
-            )
-            raw_datasets["train"] = load_dataset(
-                args.dataset_name,
-                args.dataset_config_name,
-                split=f"train[{args.validation_split_percentage}%:]",
-            )
-    else:
-        # data_files = {}
-        # if args.train_file is not None:
-        #     data_files["train"] = args.train_file
-        # if args.validation_file is not None:
-        #     data_files["validation"] = args.validation_file
-        # extension = args.train_file.split(".")[-1]
-        # if extension == "txt":
-        #     extension = "text"
-        # raw_datasets = load_dataset(extension, data_files=data_files)
-        # # If no validation data is there, validation_split_percentage will be used to divide the dataset.
-        # if "validation" not in raw_datasets.keys():
-        #     raw_datasets["validation"] = load_dataset(
-        #         extension,
-        #         data_files=data_files,
-        #         split=f"train[:{args.validation_split_percentage}%]",
-        #     )
-        #     raw_datasets["train"] = load_dataset(
-        #         extension,
-        #         data_files=data_files,
-        #         split=f"train[{args.validation_split_percentage}%:]",
-        #     )
-        pass
-
     # See more about loading any type of standard or custom dataset (from files, python dict, pandas DataFrame, etc) at
     # https://huggingface.co/docs/datasets/loading_datasets.html.
 
@@ -396,7 +349,6 @@ def main():
         logger.warning("You are instantiating a new config instance from scratch.")
 
     if args.tokenizer_name:
-        # tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name, use_fast=not args.use_slow_tokenizer)
         tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained(args.tokenizer_name, pretraining=True)
     elif args.model_name_or_path:
         tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, use_fast=not args.use_slow_tokenizer)
@@ -418,11 +370,6 @@ def main():
 
     model.resize_token_embeddings(len(tokenizer))
 
-    # Preprocessing the datasets.
-    # First we tokenize all the texts.
-    # column_names = raw_datasets["train"].column_names
-    # text_column_name = "text" if "text" in column_names else column_names[0]
-
     if args.max_seq_length is None:
         max_seq_length = tokenizer.model_max_length
         if max_seq_length > 1024:
@@ -441,11 +388,11 @@ def main():
 
     if args.line_by_line and args.dataset_name is None:
         padding = "max_length" if args.pad_to_max_length else False
-        print(f'Padding: {padding}')
 
-        '''
-        if os.path.isdir('hf_eval_mono'):
-            eval_mono_dataset = load_from_disk('hf_eval_mono')
+
+        if os.path.isdir('hf-eval'):
+            eval_mono_dataset = load_from_disk('hf-eval')
+            logger.info("Loaded Evaluation data from disk")
         else:
             mono_langs = args.mono_languages.split(',')
             eval_mono_dict = {}
@@ -492,11 +439,11 @@ def main():
 
             eval_mono_dataset = concatenate_datasets([eval_mono_dict[f'{xx}'][f'{xx}'] for xx in mono_langs])
             # save to disk
-            eval_mono_dataset.save_to_disk('hf_eval_mono')
-        '''
+            eval_mono_dataset.save_to_disk('hf-eval')
+        
         # process monolingual data
-        if os.path.isdir('hf_mono'):
-            full_mono = load_from_disk('hf_mono')
+        if os.path.isdir('hf-mono'):
+            full_mono = load_from_disk('hf-mono')
             logger.info("Loaded Monolingual data from disk")
         else:
             mono_langs = args.mono_languages.split(',')
@@ -547,49 +494,109 @@ def main():
                     mono_dict[f'{ml}'] = tokenized_datasets
 
             full_mono = concatenate_datasets([mono_dict[f'{xx}'][f'{xx}'] for xx in mono_langs])
-            full_mono.save_to_disk('hf_mono')
+            full_mono.save_to_disk('hf-mono')
+
+        # process xlit data
+        if os.path.isdir('hf-xlit'):
+            full_xlit = load_from_disk('hf-xlit')
+            logger.info("Loaded Xlit data from disk")
+        else:
+            xlit_langs = args.xlit_languages.split(',')
+            xlit_dict = {}
+            for xl in xlit_langs:
+                logger.info(f"Currently running {xl}")
+                data_files = {
+                    f'{xl}': args.xlit_train_dir + f'/en-{xl}.csv'
+                }
+                raw_datasets = load_dataset('csv', data_files=data_files, column_names=['src', 'tgt'])
+
+                def tokenize_function(examples):
+                    try:
+                        return tokenizer(
+                            examples['src'], examples['tgt'],
+                            padding=padding,
+                            truncation=True,
+                            max_length=max_seq_length,
+                            # We use this option because DataCollatorForLanguageModeling (see below) is more efficient when it
+                            # receives the `special_tokens_mask`.
+                            return_special_tokens_mask=True,
+                        )
+                    except:
+                        logger.info(examples['src'])
+                        logger.info(examples['tgt'])
+                
+                tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained('abaw_tok', pretraining=True, src_lang=f'{xl}', tgt_lang='en')
+                with accelerator.main_process_first():
+                    tokenized_datasets = raw_datasets.map(
+                        tokenize_function,
+                        batched=True,
+                        num_proc=args.preprocessing_num_workers,
+                        remove_columns=['src', 'tgt'],
+                        load_from_cache_file=not args.overwrite_cache,
+                        desc="Running tokenizer on dataset line_by_line",
+                    )
+
+                    xlit_dict[f'{xl}'] = tokenized_datasets
+
+            full_xlit = concatenate_datasets([xlit_dict[f'{xx}'][f'{xx}'] for xx in xlit_langs])
+            full_xlit.save_to_disk('hf-xlit')
+
+        # process indictrans data
+        if os.path.isdir('hf-it'):
+            full_it = load_from_disk('hf-it')
+            logger.info("Loaded IndicTrans data from disk")
+        else:
+            it_langs = args.it_languages.split(',')
+            indictrans_dict = {}
+            for il in it_langs:
+                logger.info(f"Currently running {il}")
+                data_files = {
+                    f'{il}': args.it_train_dir + f'/en-{il}.csv'
+                }
+                raw_datasets = load_dataset('csv', data_files=data_files, column_names=['src', 'tgt'])
+
+                def tokenize_function(examples):
+                    try:
+                        return tokenizer(
+                            examples['src'], examples['tgt'],
+                            padding=padding,
+                            truncation=True,
+                            max_length=max_seq_length,
+                            # We use this option because DataCollatorForLanguageModeling (see below) is more efficient when it
+                            # receives the `special_tokens_mask`.
+                            return_special_tokens_mask=True,
+                        )
+                    except:
+                        logger.info(examples['src'])
+                        logger.info(examples['tgt'])
+                
+                tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained('abaw_tok', pretraining=True, src_lang=f'{il}', tgt_lang='en')
+                with accelerator.main_process_first():
+                    tokenized_datasets = raw_datasets.map(
+                        tokenize_function,
+                        batched=True,
+                        num_proc=args.preprocessing_num_workers,
+                        remove_columns=['src', 'tgt'],
+                        load_from_cache_file=not args.overwrite_cache,
+                        desc="Running tokenizer on dataset line_by_line",
+                    )
+
+                    indictrans_dict[f'{il}'] = tokenized_datasets
+
+            full_it = concatenate_datasets([indictrans_dict[f'{xx}'][f'{xx}'] for xx in it_langs])
+            full_it.save_to_disk('hf-it')
             
         logger.info(full_mono)
+        logger.info(full_it)
+        logger.info(full_xlit)
+        logger.info(eval_mono_dataset)
 
-        # full_train_dataset = concatenate_datasets([full_mono, full_it, full_xlit])
+        full_train_dataset = concatenate_datasets([full_mono, full_it, full_xlit])
         # full_train_dataset.save_to_disk('hf_full_pretrain_data')
-        # logger.info('saved full train data to disk')
+        logger.info('Concatenated full train data')
 
         # full_train_dataset = load_from_disk('hf_full_pretrain_data')
         # logger.info('loaded full train data from disk')
-
-        # validation data
-        '''
-        Legacy Code
-
-        # When using line_by_line, we just tokenize each nonempty line.
-        padding = "max_length" if args.pad_to_max_length else False
-
-        def tokenize_function(examples):
-            # Remove empty lines
-            examples[text_column_name] = [
-                line for line in examples[text_column_name] if len(line) > 0 and not line.isspace()
-            ]
-            return tokenizer(
-                examples[text_column_name],
-                padding=padding,
-                truncation=True,
-                max_length=max_seq_length,
-                # We use this option because DataCollatorForLanguageModeling (see below) is more efficient when it
-                # receives the `special_tokens_mask`.
-                return_special_tokens_mask=True,
-            )
-
-        with accelerator.main_process_first():
-            tokenized_datasets = raw_datasets.map(
-                tokenize_function,
-                batched=True,
-                num_proc=args.preprocessing_num_workers,
-                remove_columns=[text_column_name],
-                load_from_cache_file=not args.overwrite_cache,
-                desc="Running tokenizer on dataset line_by_line",
-            )
-        '''
     else:
         # Otherwise, we tokenize every text, then concatenate them together before splitting them in smaller parts.
         # We use `return_special_tokens_mask=True` because DataCollatorForLanguageModeling (see below) is more
@@ -639,8 +646,7 @@ def main():
                 load_from_cache_file=not args.overwrite_cache,
                 desc=f"Grouping texts in chunks of {max_seq_length}",
             )
-
-    '''        
+     
     ################ change this ########################
     train_dataset = full_train_dataset
     eval_dataset = eval_mono_dataset
@@ -799,11 +805,8 @@ def main():
             #             output_dir = os.path.join(args.output_dir, output_dir)
             #         accelerator.save_state(output_dir)
 
-
-
             if completed_steps >= args.max_train_steps:
                 break
-
 
             # do eval every 10k steps
             if completed_steps % int(args.eval_every) == 0:
@@ -888,8 +891,6 @@ def main():
 
         with open(os.path.join(args.output_dir, "all_results.json"), "w") as f:
             json.dump({"perplexity": perplexity}, f)
-
-    '''
 
 
 if __name__ == "__main__":
