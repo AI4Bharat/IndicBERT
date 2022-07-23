@@ -81,6 +81,12 @@ def parse_args():
         default=None,
         help="The configuration name of the dataset to use (via the datasets library).",
     )
+    # parser.add_argument(
+    #     "--train_file", type=str, default=None, help="A csv or a json file containing the training data."
+    # )
+    # parser.add_argument(
+    #     "--validation_file", type=str, default=None, help="A csv or a json file containing the validation data."
+    # )
     parser.add_argument(
         "--validation_split_percentage",
         default=5,
@@ -230,53 +236,51 @@ def parse_args():
         ),
     )
     parser.add_argument(
-        "--monolingual_languages", type=str, default=None, help="A comma separated list of languages to use for training."
+        "--mono_languages", type=str, default=None, help="A comma separated list of languages to use for training."
     )
     parser.add_argument(
-        "--translation_languages", type=str, default=None, help="A comma separated list of languages to use for training."
+        "--it_languages", type=str, default=None, help="A comma separated list of languages to use for training."
     )
     parser.add_argument(
-        "--transliteration_languages", type=str, default=None, help="A comma separated list of languages to use for training."
+        "--xlit_languages", type=str, default=None, help="A comma separated list of languages to use for training."
     )
 
     parser.add_argument(
-        "--monolingual_train_dir", type=str, default=None, help="A directory containing the training data."
+        "--mono_train_dir", type=str, default=None, help="A directory containing the training data."
     )
     parser.add_argument(
-        "--translation_train_dir", type=str, default=None, help="A directory containing the training data."
+        "--it_train_dir", type=str, default=None, help="A directory containing the training data."
     )
     parser.add_argument(
-        "--transliteration_train_dir", type=str, default=None, help="A directory containing the training data."
+        "--xlit_train_dir", type=str, default=None, help="A directory containing the training data."
     )
 
     parser.add_argument(
-        "--hf_monolingual", type=str, default=None, help="A directory containing the training data."
+        "--mono_eval_dir", type=str, default=None, help="A directory containing the training data."
     )
     parser.add_argument(
-        "--hf_translation", type=str, default=None, help="A directory containing the training data."
+        "--it_eval_dir", type=str, default=None, help="A directory containing the training data."
     )
     parser.add_argument(
-        "--hf_transliteration", type=str, default=None, help="A directory containing the training data."
+        "--xlit_eval_dir", type=str, default=None, help="A directory containing the training data."
     )
-
-
-    parser.add_argument(
-        "--full_pretrain_dir", type=str, default=None, help="A directory containing the training data."
-    )
-
-    parser.add_argument(
-        "--monolingual_eval_dir", type=str, default=None, help="A directory containing the training data."
-    )
-    parser.add_argument(
-        "--hf_eval", type=str, default=None, help="A directory containing the training data."
-    )
-
     args = parser.parse_args()
 
     # Sanity checks
-    if (args.monolingual_train_dir is None and args.translation_train_dir is None and args.transliteration_train_dir is None) and args.full_train_dir is None:
-        raise ValueError("Need either a split dataset name full dataset")
-
+    if (args.mono_languages is None or args.it_languages is None or args.xlit_languages is None) and args.train_file is None and args.validation_file is None:
+        raise ValueError("Need either a dataset name or a training/validation file.")
+    else:
+        pass
+        '''
+        if args.train_file is not None:
+            extension = args.train_file.split(".")[-1]
+            if extension not in ["csv", "json", "txt"]:
+                raise ValueError("`train_file` should be a csv, json or txt file.")
+        if args.validation_file is not None:
+            extension = args.validation_file.split(".")[-1]
+            if extension not in ["csv", "json", "txt"]:
+                raise ValueError("`validation_file` should be a csv, json or txt file.")
+        '''
     if args.push_to_hub:
         assert args.output_dir is not None, "Need an `output_dir` to create a repo when `--push_to_hub` is passed."
 
@@ -382,172 +386,17 @@ def main():
             )
         max_seq_length = min(args.max_seq_length, tokenizer.model_max_length)
 
-    if args.line_by_line:
+    if args.line_by_line and args.dataset_name is None:
         padding = "max_length" if args.pad_to_max_length else False
 
-        if args.hf_full_pretrain_data:
-            full_train_dataset = load_from_disk(f'{args.hf_full_pretrain_data}')
-            logger.info('Loaded full training data')
+
+        if os.path.isdir('hf-eval'):
+            eval_mono_dataset = load_from_disk('hf-eval')
+            logger.info("Loaded Evaluation data from disk")
         else:
-            # process monolingual data
-            if os.path.isdir(f'{args.hf_lingual}'):
-                full_monolingual = load_from_disk(f'{args.hf_monolingual}')
-                logger.info("Loaded Monolingual data from disk")
-            elif args.monolingual_train_dir:
-                monolingual_langs = args.monolingual_languages.split(',')
-                logger.info(f'Total langs: {len(monolingual_langs)}')
-                monolingual_dict = {}
-                
-                for ml in monolingual_langs:
-                    logger.info(f"Currently running {ml}")
-                    data_files = {
-                        f'{ml}': args.monolingual_train_dir + f'/{ml}.txt'
-                    }
-                    raw_datasets = load_dataset('text', data_files=data_files)
-
-                    column_names = raw_datasets[f"{ml}"].column_names
-                    text_column_name = "text" if "text" in column_names else column_names[0]
-
-                    def tokenize_function(examples):
-                        # Remove empty lines
-                        examples[text_column_name] = [
-                            line for line in examples[text_column_name] if len(line) > 0 and not line.isspace()
-                        ]
-                        try:
-                            return tokenizer(
-                                examples[text_column_name],
-                                padding=padding,
-                                truncation=True,
-                                max_length=max_seq_length,
-                                # We use this option because DataCollatorForLanguageModeling (see below) is more efficient when it
-                                # receives the `special_tokens_mask`.
-                                return_special_tokens_mask=True,
-                            )
-                        except:
-                            logger.info(examples[text_column_name])
-
-                    tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained(f'{args.tokenizer_name}', pretraining=True, src_lang=f'{ml}')
-                    with accelerator.main_process_first():
-                        tokenized_datasets = raw_datasets.map(
-                            tokenize_function,
-                            batched=True,
-                            num_proc=args.preprocessing_num_workers,
-                            remove_columns=[text_column_name],
-                            load_from_cache_file=not args.overwrite_cache,
-                            desc="Running tokenizer on dataset line_by_line",
-                        )
-
-                        monolingual_dict[f'{ml}'] = tokenized_datasets
-
-                full_monolingual = concatenate_datasets([monolingual_dict[f'{xx}'][f'{xx}'] for xx in monolingual_langs])
-                # save to disk
-                full_monolingual.save_to_disk(f'{args.hf_monolingual}')
-
-            # process translation data
-            if os.path.isdir(f'{args.hf_translation}'):
-                full_it = load_from_disk(f'{args.hf_translation}')
-                logger.info("Loaded Translation data from disk")
-            elif args.translation_train_dir:
-                translation_langs = args.translation_languages.split(',')
-                indictrans_dict = {}
-                for il in translation_langs:
-                    logger.info(f"Currently running {il}")
-                    data_files = {
-                        f'{il}': args.translation_train_dir + f'/en-{il}/en-{il}.csv'
-                    }
-                    raw_datasets = load_dataset('csv', data_files=data_files, column_names=['src', 'tgt'])
-
-                    def tokenize_function(examples):
-                        try:
-                            return tokenizer(
-                                examples['src'], examples['tgt'],
-                                padding=padding,
-                                truncation=True,
-                                max_length=max_seq_length,
-                                # We use this option because DataCollatorForLanguageModeling (see below) is more efficient when it
-                                # receives the `special_tokens_mask`.
-                                return_special_tokens_mask=True,
-                            )
-                        except:
-                            logger.info(examples['src'])
-                            logger.info(examples['tgt'])
-                    
-                    tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained(f'{args.tokenizer_name}', pretraining=True, src_lang=f'{il}', tgt_lang='en')
-                    with accelerator.main_process_first():
-                        tokenized_datasets = raw_datasets.map(
-                            tokenize_function,
-                            batched=True,
-                            num_proc=args.preprocessing_num_workers,
-                            remove_columns=['src', 'tgt'],
-                            load_from_cache_file=not args.overwrite_cache,
-                            desc="Running tokenizer on dataset line_by_line",
-                        )
-
-                        indictrans_dict[f'{il}'] = tokenized_datasets
-
-                full_translation = concatenate_datasets([indictrans_dict[f'{xx}'][f'{xx}'] for xx in translation_langs])
-                full_translation.save_to_disk(f'{args.hf_translation}')
-
-            # process transliteration data
-            if os.path.isdir(f'{args.hf_transliteration}'):
-                full_transliteration = load_from_disk(f'{args.hf_transliteration}')
-                logger.info("Loaded Transliteration data from disk")
-            elif args.transliteration_train_dir:
-                transliteration_langs = args.transliteration_languages.split(',')
-                transliteration_dict = {}
-                for xl in transliteration_langs:
-                    logger.info(f"Currently running {xl}")
-                    data_files = {
-                        f'{xl}': args.transliteration_train_dir + f'/en-{xl}/en-{xl}.csv'
-                    }
-                    raw_datasets = load_dataset('csv', data_files=data_files, column_names=['src', 'tgt'])
-
-                    def tokenize_function(examples):
-                        try:
-                            return tokenizer(
-                                examples['src'], examples['tgt'],
-                                padding=padding,
-                                truncation=True,
-                                max_length=max_seq_length,
-                                # We use this option because DataCollatorForLanguageModeling (see below) is more efficient when it
-                                # receives the `special_tokens_mask`.
-                                return_special_tokens_mask=True,
-                            )
-                        except:
-                            logger.info(examples['src'])
-                            logger.info(examples['tgt'])
-                    
-                    tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained(f'{args.tokenizer_name}', pretraining=True, src_lang=f'{xl}', tgt_lang='en')
-                    with accelerator.main_process_first():
-                        tokenized_datasets = raw_datasets.map(
-                            tokenize_function,
-                            batched=True,
-                            num_proc=args.preprocessing_num_workers,
-                            remove_columns=['src', 'tgt'],
-                            load_from_cache_file=not args.overwrite_cache,
-                            desc="Running tokenizer on dataset line_by_line",
-                        )
-
-                        transliteration_dict[f'{xl}'] = tokenized_datasets
-
-                full_transliteration = concatenate_datasets([transliteration_dict[f'{xx}'][f'{xx}'] for xx in transliteration_langs])
-                full_transliteration.save_to_disk(f'{args.hf_transliteration}')
-                
-            logger.info(full_monolingual)
-            logger.info(full_translation)
-            logger.info(full_transliteration)
-            full_train_dataset = concatenate_datasets([full_monolingual, full_translation, full_transliteration])
-            full_train_dataset.save_to_disk(f'{args.hf_full_pretrain_data}')
-            logger.info('saved full train data to disk')
-        
-
-        # validation data
-        if os.path.isdir(f'{args.hf_eval}'):
-            eval_mono_dataset = load_from_disk(f'{args.hf_eval}')
-        else:
-            monolingual_langs = args.monolingual_languages.split(',')
-            eval_monolingual_dict = {}
-            for ml in monolingual_langs:
+            mono_langs = args.mono_languages.split(',')
+            eval_mono_dict = {}
+            for ml in mono_langs:
                 logger.info(f"Currently running {ml}")
                 data_files = {
                     f'{ml}': args.mono_eval_dir + f'/{ml}.txt'
@@ -575,7 +424,7 @@ def main():
                     except:
                         logger.info(examples[text_column_name])
 
-                tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained(f'{args.tokenizer_name}', pretraining=True, src_lang=f'{ml}')
+                tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained('abaw_tok', pretraining=True, src_lang=f'{ml}')
                 with accelerator.main_process_first():
                     tokenized_datasets = raw_datasets.map(
                         tokenize_function,
@@ -586,16 +435,221 @@ def main():
                         desc="Running tokenizer on dataset line_by_line",
                     )
 
-                    eval_monolingual_dict[f'{ml}'] = tokenized_datasets
+                    eval_mono_dict[f'{ml}'] = tokenized_datasets
 
-            eval_monolingual_dataset = concatenate_datasets([eval_monolingual_dict[f'{xx}'][f'{xx}'] for xx in monolingual_langs])
+            eval_mono_dataset = concatenate_datasets([eval_mono_dict[f'{xx}'][f'{xx}'] for xx in mono_langs])
             # save to disk
-            eval_monolingual_dataset.save_to_disk(f'{args.hf_eval}')
-
+            eval_mono_dataset.save_to_disk('hf-eval')
+        
+        # process monolingual data
+        if os.path.isdir('hf-mono'):
+            full_mono = load_from_disk('hf-mono')
+            logger.info("Loaded Monolingual data from disk")
+        else:
+            mono_langs = args.mono_languages.split(',')
+            logger.info(f'Total langs: {len(mono_langs)}')
+            mono_dict = {}
             
+            for ml in mono_langs:
+                if ml == 'sa':
+                    continue
+                logger.info(f"Currently running {ml}")
+                data_files = {
+                    f'{ml}': args.mono_train_dir + f'/{ml}.shuf'
+                }
+                raw_datasets = load_dataset('text', data_files=data_files)
+
+                column_names = raw_datasets[f"{ml}"].column_names
+                text_column_name = "text" if "text" in column_names else column_names[0]
+
+                def tokenize_function(examples):
+                    # Remove empty lines
+                    examples[text_column_name] = [
+                        line for line in examples[text_column_name] if len(line) > 0 and not line.isspace()
+                    ]
+                    try:
+                        return tokenizer(
+                            examples[text_column_name],
+                            padding=padding,
+                            truncation=True,
+                            max_length=max_seq_length,
+                            # We use this option because DataCollatorForLanguageModeling (see below) is more efficient when it
+                            # receives the `special_tokens_mask`.
+                            return_special_tokens_mask=True,
+                        )
+                    except:
+                        logger.info(examples[text_column_name])
+
+                tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained('abaw_tok', pretraining=True, src_lang=f'{ml}')
+                with accelerator.main_process_first():
+                    tokenized_datasets = raw_datasets.map(
+                        tokenize_function,
+                        batched=True,
+                        num_proc=args.preprocessing_num_workers,
+                        remove_columns=[text_column_name],
+                        load_from_cache_file=not args.overwrite_cache,
+                        desc="Running tokenizer on dataset line_by_line",
+                    )
+
+                    mono_dict[f'{ml}'] = tokenized_datasets
+
+            full_mono = concatenate_datasets([mono_dict[f'{xx}'][f'{xx}'] for xx in mono_langs])
+            full_mono.save_to_disk('hf-mono')
+
+        # process xlit data
+        if os.path.isdir('hf-xlit'):
+            full_xlit = load_from_disk('hf-xlit')
+            logger.info("Loaded Xlit data from disk")
+        else:
+            xlit_langs = args.xlit_languages.split(',')
+            xlit_dict = {}
+            for xl in xlit_langs:
+                logger.info(f"Currently running {xl}")
+                data_files = {
+                    f'{xl}': args.xlit_train_dir + f'/en-{xl}.csv'
+                }
+                raw_datasets = load_dataset('csv', data_files=data_files, column_names=['src', 'tgt'])
+
+                def tokenize_function(examples):
+                    try:
+                        return tokenizer(
+                            examples['src'], examples['tgt'],
+                            padding=padding,
+                            truncation=True,
+                            max_length=max_seq_length,
+                            # We use this option because DataCollatorForLanguageModeling (see below) is more efficient when it
+                            # receives the `special_tokens_mask`.
+                            return_special_tokens_mask=True,
+                        )
+                    except:
+                        logger.info(examples['src'])
+                        logger.info(examples['tgt'])
+                
+                tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained('abaw_tok', pretraining=True, src_lang=f'{xl}', tgt_lang='en')
+                with accelerator.main_process_first():
+                    tokenized_datasets = raw_datasets.map(
+                        tokenize_function,
+                        batched=True,
+                        num_proc=args.preprocessing_num_workers,
+                        remove_columns=['src', 'tgt'],
+                        load_from_cache_file=not args.overwrite_cache,
+                        desc="Running tokenizer on dataset line_by_line",
+                    )
+
+                    xlit_dict[f'{xl}'] = tokenized_datasets
+
+            full_xlit = concatenate_datasets([xlit_dict[f'{xx}'][f'{xx}'] for xx in xlit_langs])
+            full_xlit.save_to_disk('hf-xlit')
+
+        # process indictrans data
+        if os.path.isdir('hf-it'):
+            full_it = load_from_disk('hf-it')
+            logger.info("Loaded IndicTrans data from disk")
+        else:
+            it_langs = args.it_languages.split(',')
+            indictrans_dict = {}
+            for il in it_langs:
+                logger.info(f"Currently running {il}")
+                data_files = {
+                    f'{il}': args.it_train_dir + f'/en-{il}.csv'
+                }
+                raw_datasets = load_dataset('csv', data_files=data_files, column_names=['src', 'tgt'])
+
+                def tokenize_function(examples):
+                    try:
+                        return tokenizer(
+                            examples['src'], examples['tgt'],
+                            padding=padding,
+                            truncation=True,
+                            max_length=max_seq_length,
+                            # We use this option because DataCollatorForLanguageModeling (see below) is more efficient when it
+                            # receives the `special_tokens_mask`.
+                            return_special_tokens_mask=True,
+                        )
+                    except:
+                        logger.info(examples['src'])
+                        logger.info(examples['tgt'])
+                
+                tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained('abaw_tok', pretraining=True, src_lang=f'{il}', tgt_lang='en')
+                with accelerator.main_process_first():
+                    tokenized_datasets = raw_datasets.map(
+                        tokenize_function,
+                        batched=True,
+                        num_proc=args.preprocessing_num_workers,
+                        remove_columns=['src', 'tgt'],
+                        load_from_cache_file=not args.overwrite_cache,
+                        desc="Running tokenizer on dataset line_by_line",
+                    )
+
+                    indictrans_dict[f'{il}'] = tokenized_datasets
+
+            full_it = concatenate_datasets([indictrans_dict[f'{xx}'][f'{xx}'] for xx in it_langs])
+            full_it.save_to_disk('hf-it')
+            
+        logger.info(full_mono)
+        logger.info(full_it)
+        logger.info(full_xlit)
+        logger.info(eval_mono_dataset)
+
+        full_train_dataset = concatenate_datasets([full_mono, full_it, full_xlit])
+        # full_train_dataset.save_to_disk('hf_full_pretrain_data')
+        logger.info('Concatenated full train data')
+
+        # full_train_dataset = load_from_disk('hf_full_pretrain_data')
+        # logger.info('loaded full train data from disk')
+    else:
+        # Otherwise, we tokenize every text, then concatenate them together before splitting them in smaller parts.
+        # We use `return_special_tokens_mask=True` because DataCollatorForLanguageModeling (see below) is more
+        # efficient when it receives the `special_tokens_mask`.
+        def tokenize_function(examples):
+            return tokenizer(examples[text_column_name], return_special_tokens_mask=True)
+
+        with accelerator.main_process_first():
+            tokenized_datasets = raw_datasets.map(
+                tokenize_function,
+                batched=True,
+                num_proc=args.preprocessing_num_workers,
+                remove_columns=column_names,
+                load_from_cache_file=not args.overwrite_cache,
+                desc="Running tokenizer on every text in dataset",
+            )
+
+        # Main data processing function that will concatenate all texts from our dataset and generate chunks of
+        # max_seq_length.
+        def group_texts(examples):
+            # Concatenate all texts.
+            concatenated_examples = {k: list(chain(*examples[k])) for k in examples.keys()}
+            total_length = len(concatenated_examples[list(examples.keys())[0]])
+            # We drop the small remainder, we could add padding if the model supported it instead of this drop, you can
+            # customize this part to your needs.
+            if total_length >= max_seq_length:
+                total_length = (total_length // max_seq_length) * max_seq_length
+            # Split by chunks of max_len.
+            result = {
+                k: [t[i : i + max_seq_length] for i in range(0, total_length, max_seq_length)]
+                for k, t in concatenated_examples.items()
+            }
+            return result
+
+        # Note that with `batched=True`, this map processes 1,000 texts together, so group_texts throws away a
+        # remainder for each of those groups of 1,000 texts. You can adjust that batch_size here but a higher value
+        # might be slower to preprocess.
+        #
+        # To speed up this part, we use multiprocessing. See the documentation of the map method for more information:
+        # https://huggingface.co/docs/datasets/package_reference/main_classes.html#datasets.Dataset.map
+
+        with accelerator.main_process_first():
+            tokenized_datasets = tokenized_datasets.map(
+                group_texts,
+                batched=True,
+                num_proc=args.preprocessing_num_workers,
+                load_from_cache_file=not args.overwrite_cache,
+                desc=f"Grouping texts in chunks of {max_seq_length}",
+            )
+     
     ################ change this ########################
     train_dataset = full_train_dataset
-    eval_dataset = eval_monolingual_dataset
+    eval_dataset = eval_mono_dataset
 
     # Conditional for small test subsets
     if len(train_dataset) > 3:
@@ -605,7 +659,7 @@ def main():
 
     # Data collator
     # This one will take care of randomly masking the tokens.
-    tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained(f'{args.tokenizer_name}', pretraining=True, src_lang=f'en')
+    tokenizer = IndicXLMSentencePieceTokenizer.from_pretrained('abaw_tok', pretraining=True, src_lang=f'en')
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm_probability=args.mlm_probability)
 
     logger.info('Data collator ready!!')
@@ -744,15 +798,22 @@ def main():
                 progress_bar.update(1)
                 completed_steps += 1
 
+            # if isinstance(checkpointing_steps, int):
+            #     if completed_steps % checkpointing_steps == 0:
+            #         output_dir = f"step_{completed_steps }"
+            #         if args.output_dir is not None:
+            #             output_dir = os.path.join(args.output_dir, output_dir)
+            #         accelerator.save_state(output_dir)
+
             if completed_steps >= args.max_train_steps:
                 break
 
-            # do eval after `eval_every` steps
+            # do eval every 10k steps
             if completed_steps % int(args.eval_every) == 0:
 
                 model.eval()
                 losses = []
-                for s, batch in enumerate(eval_dataloader):
+                for step, batch in enumerate(eval_dataloader):
                     with torch.no_grad():
                         outputs = model(**batch)
 
@@ -767,7 +828,7 @@ def main():
                 except OverflowError:
                     perplexity = float("inf")
 
-                logger.info(f"Total steps {completed_steps} - perplexity: {perplexity}")
+                logger.info(f"step {step}: perplexity: {perplexity}")
 
                 if args.with_tracking:
                     accelerator.log(
