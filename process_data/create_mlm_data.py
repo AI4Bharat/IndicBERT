@@ -99,7 +99,7 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
     """Create TF example files from `TrainingInstance`s."""
     writers = []
     for output_file in output_files:
-        writers.append(tf.python_io.TFRecordWriter(output_file))
+        writers.append(tf.io.TFRecordWriter(output_file))
 
     writer_index = 0
 
