@@ -22,6 +22,7 @@ import collections
 import random
 import tokenization
 import tensorflow as tf
+from absl import logging
 
 flags = tf.compat.v1.app.flags
 
@@ -433,19 +434,23 @@ def truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng):
             trunc_tokens.pop()
 
 
-def main(_):
-    tf.logging.set_verbosity(tf.logging.INFO)
+if __name__ == "__main__":
+    flags.mark_flag_as_required("input_file")
+    flags.mark_flag_as_required("output_file")
+    flags.mark_flag_as_required("vocab_file")
+    logging.info("do_whole_word_mask: %s" % FLAGS.do_whole_word_mask)
+    logging.set_verbosity(logging.INFO)
 
     tokenizer = tokenization.FullTokenizer(
         vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
 
     input_files = []
     for input_pattern in FLAGS.input_file.split(","):
-        input_files.extend(tf.gfile.Glob(input_pattern))
+        input_files.extend(tf.compat.v1.gfile.Glob(input_pattern))
 
-    tf.logging.info("*** Reading from input files ***")
+    logging.info("*** Reading from input files ***")
     for input_file in input_files:
-        tf.logging.info("  %s", input_file)
+        logging.info("  %s", input_file)
 
     rng = random.Random(FLAGS.random_seed)
     instances = create_training_instances(
@@ -454,16 +459,9 @@ def main(_):
         rng)
 
     output_files = FLAGS.output_file.split(",")
-    tf.logging.info("*** Writing to output files ***")
+    logging.info("*** Writing to output files ***")
     for output_file in output_files:
-        tf.logging.info("  %s", output_file)
+        logging.info("  %s", output_file)
 
     write_instance_to_example_files(instances, tokenizer, FLAGS.max_seq_length,
                                     FLAGS.max_predictions_per_seq, output_files)
-
-
-if __name__ == "__main__":
-    flags.mark_flag_as_required("input_file")
-    flags.mark_flag_as_required("output_file")
-    flags.mark_flag_as_required("vocab_file")
-    tf.app.run()
