@@ -23,7 +23,7 @@ import random
 import tokenization
 import tensorflow as tf
 
-flags = tf.flags
+flags = tf.compat.v1.app.flags
 
 FLAGS = flags.FLAGS
 
