@@ -22,9 +22,8 @@ import collections
 import random
 import tokenization
 import tensorflow as tf
-from absl import logging
 
-flags = tf.compat.v1.app.flags
+flags = tf.flags
 
 FLAGS = flags.FLAGS
 
@@ -93,19 +92,18 @@ class TrainingInstance(object):
     def __repr__(self):
         return self.__str__()
 
+
 def write_instance_to_example_files(instances, tokenizer, max_seq_length,
                                     max_predictions_per_seq, output_files):
     """Create TF example files from `TrainingInstance`s."""
     writers = []
     for output_file in output_files:
-        writers.append(tf.io.TFRecordWriter(output_file))
+        writers.append(tf.python_io.TFRecordWriter(output_file))
 
     writer_index = 0
 
     total_written = 0
     for (inst_index, instance) in enumerate(instances):
-        if(inst_index%10000==0):
-            logging.info("Writing: "+str(inst_index)+" instance")
         input_ids = tokenizer.convert_tokens_to_ids(instance.tokens)
         input_mask = [1] * len(input_ids)
         segment_ids = list(instance.segment_ids)
@@ -148,8 +146,8 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
         total_written += 1
 
         if inst_index < 20:
-            logging.info("*** Example ***")
-            logging.info("tokens: %s" % " ".join(
+            tf.logging.info("*** Example ***")
+            tf.logging.info("tokens: %s" % " ".join(
                 [tokenization.printable_text(x) for x in instance.tokens]))
 
             for feature_name in features.keys():
@@ -159,13 +157,13 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
                     values = feature.int64_list.value
                 elif feature.float_list.value:
                     values = feature.float_list.value
-                logging.info(
+                tf.logging.info(
                     "%s: %s" % (feature_name, " ".join([str(x) for x in values])))
 
     for writer in writers:
         writer.close()
 
-    logging.info("Wrote %d total instances" % total_written)
+    tf.logging.info("Wrote %d total instances", total_written)
 
 
 def create_int_feature(values):
@@ -191,12 +189,8 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
     # (2) Blank lines between documents. Document boundaries are needed so
     # that the "next sentence prediction" task doesn't span between documents.
     for input_file in input_files:
-        with tf.io.gfile.GFile(input_file, "r") as reader:
-            count=0
+        with tf.gfile.GFile(input_file, "r") as reader:
             while True:
-
-                if(count%50000==0):
-                    logging.info("Reading document number: %d" % count)
                 line = tokenization.convert_to_unicode(reader.readline())
                 if not line:
                     break
@@ -204,7 +198,6 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
 
                 # Empty lines are used as document delimiters
                 if not line:
-                    count+=1
                     all_documents.append([])
                 tokens = tokenizer.tokenize(line)
                 if tokens:
@@ -216,12 +209,8 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
 
     vocab_words = list(tokenizer.vocab.keys())
     instances = []
-
-    logging.info("Number of documents="+str(len(all_documents)))
-    for dff in range(dupe_factor):
+    for _ in range(dupe_factor):
         for document_index in range(len(all_documents)):
-            if(document_index%10000==0):
-                logging.info("Creating for document index,dupe_factor: %d , %d" %(document_index, dff))
             instances.extend(
                 create_instances_from_document(
                     all_documents, document_index, max_seq_length, short_seq_prob,
@@ -268,27 +257,49 @@ def create_instances_from_document(
             if current_chunk:
                 # `a_end` is how many segments from `current_chunk` go into the `A`
                 # (first) sentence.
-                # a_end is set to the complete current_chunk as the
-                # 'B' has to be kept empty and hence the whole
-                # current_chunk goes into 'A' (before swapping)
-                a_end = len(current_chunk)
+                a_end = 1
+                if len(current_chunk) >= 2:
+                    a_end = rng.randint(1, len(current_chunk) - 1)
+
                 tokens_a = []
                 for j in range(a_end):
                     tokens_a.extend(current_chunk[j])
 
                 tokens_b = []
-                # tokens_b will be kept empty
-                # Random next. Just being kept because code requires it to.
-                # Not used as such.
+                # Random next
                 is_random_next = False
+                if len(current_chunk) == 1 or rng.random() < 0.5:
+                    is_random_next = True
+                    target_b_length = target_seq_length - len(tokens_a)
+
+                    # This should rarely go for more than one iteration for large
+                    # corpora. However, just to be careful, we try to make sure that
+                    # the random document is not the same as the document
+                    # we're processing.
+                    for _ in range(10):
+                        random_document_index = rng.randint(0, len(all_documents) - 1)
+                        if random_document_index != document_index:
+                            break
+
+                    random_document = all_documents[random_document_index]
+                    random_start = rng.randint(0, len(random_document) - 1)
+                    for j in range(random_start, len(random_document)):
+                        tokens_b.extend(random_document[j])
+                        if len(tokens_b) >= target_b_length:
+                            break
+                    # We didn't actually use these segments so we "put them back" so
+                    # they don't go to waste.
+                    num_unused_segments = len(current_chunk) - a_end
+                    i -= num_unused_segments
+                # Actual next
+                else:
+                    is_random_next = False
+                    for j in range(a_end, len(current_chunk)):
+                        tokens_b.extend(current_chunk[j])
                 truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng)
 
                 assert len(tokens_a) >= 1
-                tokens_b=[]  # tokens_b has been made empty
-                # Swapping tokens_a and tokens_b to have either empty_first_sentence
-                # or empty_next_sentence
-                if(rng.random() < 0.5):
-                    tokens_a,tokens_b=tokens_b,tokens_a
+                assert len(tokens_b) >= 1
 
                 tokens = []
                 segment_ids = []
@@ -422,24 +433,19 @@ def truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng):
             trunc_tokens.pop()
 
 
-#def main(_):
-if __name__ == "__main__":
-    flags.mark_flag_as_required("input_file")
-    flags.mark_flag_as_required("output_file")
-    flags.mark_flag_as_required("vocab_file")
-    logging.info("do_whole_word_mask: %s" % FLAGS.do_whole_word_mask)
-    logging.set_verbosity(logging.INFO)
+def main(_):
+    tf.logging.set_verbosity(tf.logging.INFO)
 
     tokenizer = tokenization.FullTokenizer(
         vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
 
     input_files = []
     for input_pattern in FLAGS.input_file.split(","):
-        input_files.extend(tf.compat.v1.gfile.Glob(input_pattern))
+        input_files.extend(tf.gfile.Glob(input_pattern))
 
-    logging.info("*** Reading from input files ***")
+    tf.logging.info("*** Reading from input files ***")
     for input_file in input_files:
-        logging.info("  %s", input_file)
+        tf.logging.info("  %s", input_file)
 
     rng = random.Random(FLAGS.random_seed)
     instances = create_training_instances(
@@ -448,9 +454,16 @@ if __name__ == "__main__":
         rng)
 
     output_files = FLAGS.output_file.split(",")
-    logging.info("*** Writing to output files ***")
+    tf.logging.info("*** Writing to output files ***")
     for output_file in output_files:
-        logging.info("  %s", output_file)
+        tf.logging.info("  %s", output_file)
 
     write_instance_to_example_files(instances, tokenizer, FLAGS.max_seq_length,
                                     FLAGS.max_predictions_per_seq, output_files)
+
+
+if __name__ == "__main__":
+    flags.mark_flag_as_required("input_file")
+    flags.mark_flag_as_required("output_file")
+    flags.mark_flag_as_required("vocab_file")
+    tf.app.run()
