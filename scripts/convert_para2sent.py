@@ -2,7 +2,7 @@
 
 import os
 import argparse
-import tqdm
+from tqdm import tqdm
 from indicnlp.tokenize.sentence_tokenize import sentence_split
 
 parser = argparse.ArgumentParser()
@@ -25,9 +25,9 @@ def main(args):
         lang = 'ur'
 
     if lang in indicnlp_supported:
-        split_lines = [sentence_split(line, lang) for line, lang in tqdm.tqdm(zip(lines, [lang] * len(lines)))]
+        split_lines = [sentence_split(line, lang) for line, lang in tqdm(zip(lines, [lang] * len(lines)))]
     else:
-        split_lines = [map(lambda x: x + '.', line.split('.')) for line in tqdm.tqdm(lines)]
+        split_lines = [map(lambda x: x + '.', line.split('.')) for line in tqdm(lines)]
 
     with open(args.output, 'w') as f:
         for paragraph in split_lines:
