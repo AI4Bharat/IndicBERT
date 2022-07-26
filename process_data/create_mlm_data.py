@@ -252,7 +252,8 @@ def create_instances_from_document(
     current_length = 0
     i = 0
     logging.info("*** Iterating documents ***")
-    while i < tqdm(len(document), total=len(document)):
+    pbar = tqdm(total=len(document))
+    while i < len(document):
         segment = document[i]
         current_chunk.append(segment)
         current_length += len(segment)
@@ -334,6 +335,7 @@ def create_instances_from_document(
             current_chunk = []
             current_length = 0
         i += 1
+        pbar.update(1)
 
     return instances
 
