@@ -23,6 +23,7 @@ import random
 import tokenization
 import tensorflow as tf
 from absl import logging
+from tqdm import tqdm
 
 flags = tf.compat.v1.app.flags
 
@@ -250,7 +251,8 @@ def create_instances_from_document(
     current_chunk = []
     current_length = 0
     i = 0
-    while i < len(document):
+    logging.info("*** Iterating documents ***")
+    while i < tqdm(len(document), total=len(document)):
         segment = document[i]
         current_chunk.append(segment)
         current_length += len(segment)
