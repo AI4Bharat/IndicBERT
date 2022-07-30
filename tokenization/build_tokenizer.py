@@ -9,7 +9,7 @@ from tokenizers.pre_tokenizers import Whitespace
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--input", type=str, default="")
-parser.add_argument("--vocab_size", type=int, default="")
+parser.add_argument("--vocab_size", type=int, default=250000)
 parser.add_argument("--output", type=str, default="")
 args = parser.parse_args()
 

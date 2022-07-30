@@ -23,6 +23,7 @@ import random
 import tokenization
 import tensorflow as tf
 from absl import logging
+from tqdm import tqdm
 
 flags = tf.compat.v1.app.flags
 
@@ -93,6 +94,7 @@ class TrainingInstance(object):
     def __repr__(self):
         return self.__str__()
 
+
 def write_instance_to_example_files(instances, tokenizer, max_seq_length,
                                     max_predictions_per_seq, output_files):
     """Create TF example files from `TrainingInstance`s."""
@@ -104,8 +106,6 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
 
     total_written = 0
     for (inst_index, instance) in enumerate(instances):
-        if(inst_index%10000==0):
-            logging.info("Writing: "+str(inst_index)+" instance")
         input_ids = tokenizer.convert_tokens_to_ids(instance.tokens)
         input_mask = [1] * len(input_ids)
         segment_ids = list(instance.segment_ids)
@@ -165,7 +165,7 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
     for writer in writers:
         writer.close()
 
-    logging.info("Wrote %d total instances" % total_written)
+    logging.info("Wrote %d total instances", total_written)
 
 
 def create_int_feature(values):
@@ -192,11 +192,7 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
     # that the "next sentence prediction" task doesn't span between documents.
     for input_file in input_files:
         with tf.io.gfile.GFile(input_file, "r") as reader:
-            count=0
             while True:
-
-                if(count%50000==0):
-                    logging.info("Reading document number: %d" % count)
                 line = tokenization.convert_to_unicode(reader.readline())
                 if not line:
                     break
@@ -204,7 +200,6 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
 
                 # Empty lines are used as document delimiters
                 if not line:
-                    count+=1
                     all_documents.append([])
                 tokens = tokenizer.tokenize(line)
                 if tokens:
@@ -216,12 +211,8 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
 
     vocab_words = list(tokenizer.vocab.keys())
     instances = []
-
-    logging.info("Number of documents="+str(len(all_documents)))
-    for dff in range(dupe_factor):
+    for _ in range(dupe_factor):
         for document_index in range(len(all_documents)):
-            if(document_index%10000==0):
-                logging.info("Creating for document index,dupe_factor: %d , %d" %(document_index, dff))
             instances.extend(
                 create_instances_from_document(
                     all_documents, document_index, max_seq_length, short_seq_prob,
@@ -260,6 +251,8 @@ def create_instances_from_document(
     current_chunk = []
     current_length = 0
     i = 0
+    logging.info("*** Iterating documents ***")
+    pbar = tqdm(total=len(document))
     while i < len(document):
         segment = document[i]
         current_chunk.append(segment)
@@ -268,27 +261,49 @@ def create_instances_from_document(
             if current_chunk:
                 # `a_end` is how many segments from `current_chunk` go into the `A`
                 # (first) sentence.
-                # a_end is set to the complete current_chunk as the
-                # 'B' has to be kept empty and hence the whole
-                # current_chunk goes into 'A' (before swapping)
-                a_end = len(current_chunk)
+                a_end = 1
+                if len(current_chunk) >= 2:
+                    a_end = rng.randint(1, len(current_chunk) - 1)
+
                 tokens_a = []
                 for j in range(a_end):
                     tokens_a.extend(current_chunk[j])
 
                 tokens_b = []
-                # tokens_b will be kept empty
-                # Random next. Just being kept because code requires it to.
-                # Not used as such.
+                # Random next
                 is_random_next = False
+                if len(current_chunk) == 1 or rng.random() < 0.5:
+                    is_random_next = True
+                    target_b_length = target_seq_length - len(tokens_a)
+
+                    # This should rarely go for more than one iteration for large
+                    # corpora. However, just to be careful, we try to make sure that
+                    # the random document is not the same as the document
+                    # we're processing.
+                    for _ in range(10):
+                        random_document_index = rng.randint(0, len(all_documents) - 1)
+                        if random_document_index != document_index:
+                            break
+
+                    random_document = all_documents[random_document_index]
+                    random_start = rng.randint(0, len(random_document) - 1)
+                    for j in range(random_start, len(random_document)):
+                        tokens_b.extend(random_document[j])
+                        if len(tokens_b) >= target_b_length:
+                            break
+                    # We didn't actually use these segments so we "put them back" so
+                    # they don't go to waste.
+                    num_unused_segments = len(current_chunk) - a_end
+                    i -= num_unused_segments
+                # Actual next
+                else:
+                    is_random_next = False
+                    for j in range(a_end, len(current_chunk)):
+                        tokens_b.extend(current_chunk[j])
                 truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng)
 
                 assert len(tokens_a) >= 1
-                tokens_b=[]  # tokens_b has been made empty
-                # Swapping tokens_a and tokens_b to have either empty_first_sentence
-                # or empty_next_sentence
-                if(rng.random() < 0.5):
-                    tokens_a,tokens_b=tokens_b,tokens_a
+                assert len(tokens_b) >= 1
 
                 tokens = []
                 segment_ids = []
@@ -320,6 +335,7 @@ def create_instances_from_document(
             current_chunk = []
             current_length = 0
         i += 1
+        pbar.update(1)
 
     return instances
 
@@ -422,7 +438,6 @@ def truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng):
             trunc_tokens.pop()
 
 
-#def main(_):
 if __name__ == "__main__":
     flags.mark_flag_as_required("input_file")
     flags.mark_flag_as_required("output_file")
