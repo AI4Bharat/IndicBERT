@@ -8,6 +8,7 @@ from indicnlp.tokenize.sentence_tokenize import sentence_split
 parser = argparse.ArgumentParser()
 parser.add_argument("--input", type=str, default="")
 parser.add_argument("--output", type=str, default="")
+parser.add_argument("--lang", type=str, default="")
 args = parser.parse_args()
 
 indicnlp_supported  =['as', 'bn', 'en', 'gu', 'hi', 'kn', 'ml', 'mr', 'ne', 'or', 'pa', 'sa', 'sd', 'ta', 'te', 'ur']
@@ -19,7 +20,7 @@ def read_file(file_name):
 
 def main(args):
     lines = read_file(args.input)
-    lang = os.path.basename(args.input).split('.')[0]
+    lang = args.lang
 
     if lang == 'sd':
         lang = 'ur'
