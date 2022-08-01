@@ -18,12 +18,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import itertools
 import collections
 import random
+from turtle import back
 import tokenization
 import tensorflow as tf
 from absl import logging
 from tqdm import tqdm
+from joblib import Parallel, delayed
 
 flags = tf.compat.v1.app.flags
 
@@ -66,6 +69,7 @@ flags.DEFINE_float(
     "Probability of creating sequences which are shorter than the "
     "maximum length.")
 
+flags.DEFINE_integer("num_workers", 128, "Num. of CPU workers for parallel processing")
 
 class TrainingInstance(object):
     """A single training instance (sentence pair)."""
@@ -147,6 +151,7 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
 
         total_written += 1
 
+        '''
         if inst_index < 20:
             logging.info("*** Example ***")
             logging.info("tokens: %s" % " ".join(
@@ -161,7 +166,7 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
                     values = feature.float_list.value
                 logging.info(
                     "%s: %s" % (feature_name, " ".join([str(x) for x in values])))
-
+        '''
     for writer in writers:
         writer.close()
 
@@ -214,9 +219,17 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
     for _ in range(dupe_factor):
         for document_index in range(len(all_documents)):
             instances.extend(
-                create_instances_from_document(
-                    all_documents, document_index, max_seq_length, short_seq_prob,
-                    masked_lm_prob, max_predictions_per_seq, vocab_words, rng))
+            create_instances_from_document(
+                all_documents, document_index, max_seq_length, short_seq_prob,
+                masked_lm_prob, max_predictions_per_seq, vocab_words, rng))
+
+        # TODO: Outputs are not as exptected. Check again later
+        # document_instance = Parallel(n_jobs=FLAGS.num_workers, backend='loky', verbose=500)( \
+        #                     delayed(create_instances_from_document) \
+        #                     (all_documents, document_index, max_seq_length, short_seq_prob, masked_lm_prob, max_predictions_per_seq, vocab_words, rng)
+        #                     for document_index in tqdm(range(len(all_documents))) \
+        #                     )
+        # instances += list(itertools.chain.from_iterable(document_instance))
 
     rng.shuffle(instances)
     return instances
@@ -251,8 +264,6 @@ def create_instances_from_document(
     current_chunk = []
     current_length = 0
     i = 0
-    logging.info("*** Iterating documents ***")
-    pbar = tqdm(total=len(document))
     while i < len(document):
         segment = document[i]
         current_chunk.append(segment)
@@ -335,7 +346,6 @@ def create_instances_from_document(
             current_chunk = []
             current_length = 0
         i += 1
-        pbar.update(1)
 
     return instances
 
