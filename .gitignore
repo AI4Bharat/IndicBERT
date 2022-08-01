@@ -163,3 +163,4 @@ cython_debug/
 *.tfrecord
 
 wordpiece_250k/
+sample_data
