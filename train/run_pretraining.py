@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Run masked LM/next sentence masked_lm pre-training for BERT."""
+"""Run masked_lm pre-training for BERT."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -124,7 +124,6 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
         masked_lm_positions = features["masked_lm_positions"]
         masked_lm_ids = features["masked_lm_ids"]
         masked_lm_weights = features["masked_lm_weights"]
-        next_sentence_labels = features["next_sentence_labels"]
 
         is_training = (mode == tf.estimator.ModeKeys.TRAIN)
 
@@ -141,11 +140,7 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
              bert_config, model.get_sequence_output(), model.get_embedding_table(),
              masked_lm_positions, masked_lm_ids, masked_lm_weights)
 
-        (next_sentence_loss, next_sentence_example_loss,
-         next_sentence_log_probs) = get_next_sentence_output(
-             bert_config, model.get_pooled_output(), next_sentence_labels)
-
-        total_loss = masked_lm_loss + next_sentence_loss
+        total_loss = masked_lm_loss
 
         tvars = tf.trainable_variables()
 
@@ -185,8 +180,7 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
         elif mode == tf.estimator.ModeKeys.EVAL:
 
             def metric_fn(masked_lm_example_loss, masked_lm_log_probs, masked_lm_ids,
-                          masked_lm_weights, next_sentence_example_loss,
-                          next_sentence_log_probs, next_sentence_labels):
+                          masked_lm_weights):
                 """Computes the loss and accuracy of the model."""
                 masked_lm_log_probs = tf.reshape(masked_lm_log_probs,
                                                  [-1, masked_lm_log_probs.shape[-1]])
@@ -202,27 +196,14 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
                 masked_lm_mean_loss = tf.metrics.mean(
                     values=masked_lm_example_loss, weights=masked_lm_weights)
 
-                next_sentence_log_probs = tf.reshape(
-                    next_sentence_log_probs, [-1, next_sentence_log_probs.shape[-1]])
-                next_sentence_predictions = tf.argmax(
-                    next_sentence_log_probs, axis=-1, output_type=tf.int32)
-                next_sentence_labels = tf.reshape(next_sentence_labels, [-1])
-                next_sentence_accuracy = tf.metrics.accuracy(
-                    labels=next_sentence_labels, predictions=next_sentence_predictions)
-                next_sentence_mean_loss = tf.metrics.mean(
-                    values=next_sentence_example_loss)
-
                 return {
                     "masked_lm_accuracy": masked_lm_accuracy,
-                    "masked_lm_loss": masked_lm_mean_loss,
-                    "next_sentence_accuracy": next_sentence_accuracy,
-                    "next_sentence_loss": next_sentence_mean_loss,
+                    "masked_lm_loss": masked_lm_mean_loss
                 }
 
             eval_metrics = (metric_fn, [
                 masked_lm_example_loss, masked_lm_log_probs, masked_lm_ids,
-                masked_lm_weights, next_sentence_example_loss,
-                next_sentence_log_probs, next_sentence_labels
+                masked_lm_weights
             ])
             output_spec = tf.contrib.tpu.TPUEstimatorSpec(
                 mode=mode,
@@ -282,29 +263,6 @@ def get_masked_lm_output(bert_config, input_tensor, output_weights, positions,
     return (loss, per_example_loss, log_probs)
 
 
-def get_next_sentence_output(bert_config, input_tensor, labels):
-    """Get loss and log probs for the next sentence prediction."""
-
-    # Simple binary classification. Note that 0 is "next sentence" and 1 is
-    # "random sentence". This weight matrix is not used after pre-training.
-    with tf.variable_scope("cls/seq_relationship"):
-        output_weights = tf.get_variable(
-            "output_weights",
-            shape=[2, bert_config.hidden_size],
-            initializer=modeling.create_initializer(bert_config.initializer_range))
-        output_bias = tf.get_variable(
-            "output_bias", shape=[2], initializer=tf.zeros_initializer())
-
-        logits = tf.matmul(input_tensor, output_weights, transpose_b=True)
-        logits = tf.nn.bias_add(logits, output_bias)
-        log_probs = tf.nn.log_softmax(logits, axis=-1)
-        labels = tf.reshape(labels, [-1])
-        one_hot_labels = tf.one_hot(labels, depth=2, dtype=tf.float32)
-        per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1)
-        loss = tf.reduce_mean(per_example_loss)
-        return (loss, per_example_loss, log_probs)
-
-
 def gather_indexes(sequence_tensor, positions):
     """Gathers the vectors at the specific positions over a minibatch."""
     sequence_shape = modeling.get_shape_list(sequence_tensor, expected_rank=3)
@@ -345,8 +303,6 @@ def input_fn_builder(input_files,
                 tf.FixedLenFeature([max_predictions_per_seq], tf.int64),
             "masked_lm_weights":
                 tf.FixedLenFeature([max_predictions_per_seq], tf.float32),
-            "next_sentence_labels":
-                tf.FixedLenFeature([1], tf.int64),
         }
 
         # For training, we want a lot of parallel reading and shuffling.
