@@ -18,8 +18,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
 import itertools
 import collections
+from operator import index
 import random
 from turtle import back
 import tokenization
@@ -27,6 +29,7 @@ import tensorflow as tf
 from absl import logging
 from tqdm import tqdm
 from joblib import Parallel, delayed
+import pandas as pd
 
 flags = tf.compat.v1.app.flags
 
@@ -34,6 +37,9 @@ FLAGS = flags.FLAGS
 
 flags.DEFINE_string("input_file", None,
                     "Input raw text file (or comma-separated list of files).")
+
+flags.DEFINE_string("parallel_file", None,
+                    "Input tsv file (or comma-separated list of files).")
 
 flags.DEFINE_string(
     "output_file", None,
@@ -182,6 +188,71 @@ def create_float_feature(values):
     feature = tf.train.Feature(float_list=tf.train.FloatList(value=list(values)))
     return feature
 
+def create_parallel_instances(src_files, tgt_files, tokenizer, max_seq_length,
+                                dupe_factor, short_seq_prob, masked_lm_prob,
+                                max_predictions_per_seq, rng):
+    """Create `TrainingInstance`s from parallel text."""
+
+    # Input file format:
+    # tsv file with 2 columns.
+    # Column 0: with English text
+    # Column 1: with in-language text
+
+    src_documents = [[]]
+    tgt_documents = [[]]
+    for src_file, tgt_file in zip(src_files, tgt_files):
+        # df = pd.read_csv(parallel_file, sep='\t', names=['src', 'tgt'])
+        with tf.io.gfile.GFile(src_file, "r") as reader:
+            while True:
+                line = tokenization.convert_to_unicode(reader.readline())
+                if not line:
+                    break
+                line = line.strip()
+
+                if not line:
+                    src_documents.append([])
+
+                tokens = tokenizer.tokenize(line)
+                if tokens:
+                    src_documents[-1].append(tokens)
+
+        with tf.io.gfile.GFile(tgt_file, "r") as reader:
+            while True:
+                line = tokenization.convert_to_unicode(reader.readline())
+                if not line:
+                    break
+                line = line.strip()
+
+                if not line:
+                    tgt_documents.append([])
+
+                tokens = tokenizer.tokenize(line)
+                if tokens:
+                    tgt_documents[-1].append(tokens)
+
+    src_documents = [x for x in src_documents if x]
+    tgt_documents = [x for x in tgt_documents if x]
+
+    all_documents = list(zip(src_documents, tgt_documents))
+    random.shuffle(all_documents)
+    src_documents, tgt_documents = zip(*all_documents)
+
+    assert len(src_documents) == len(tgt_documents)
+
+    vocab_words = list(tokenizer.vocab.keys())
+    instances = []
+    for _ in range(dupe_factor):
+        for index in range(len(src_documents)):
+            instances.extend(
+                create_parallel_instances_from_document(
+                    src_documents, tgt_documents, index, max_seq_length, short_seq_prob,
+                    masked_lm_prob, max_predictions_per_seq, vocab_words, rng 
+                )
+            )
+
+    rng.shuffle(instances)
+    return instances
+
 
 def create_training_instances(input_files, tokenizer, max_seq_length,
                               dupe_factor, short_seq_prob, masked_lm_prob,
@@ -232,6 +303,89 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
         # instances += list(itertools.chain.from_iterable(document_instance))
 
     rng.shuffle(instances)
+    return instances
+
+def create_parallel_instances_from_document(
+    src_documents, tgt_documents, idx, max_seq_length, short_seq_prob,
+    masked_lm_prob, max_predictions_per_seq, vocab_words, rng):
+
+    src_doc = src_documents[idx]
+    tgt_doc = tgt_documents[idx]
+
+    # Account for [CLS], [SEP], [SEP]
+    max_num_tokens = max_seq_length - 3
+
+    # check `create_instances_from_document` for documentation
+    target_seq_length = max_num_tokens
+    if rng.random() < short_seq_prob:
+        target_seq_length = rng.randint(2, max_num_tokens)
+
+    instances = []
+    source_chunk = []
+    target_chunk = []
+    source_length = 0
+    target_length = 0
+
+    i = 0
+    while i < len(src_doc):
+        src_segment = src_doc[i]
+        source_chunk.append(src_segment)
+        source_length += len(src_segment)
+
+        tgt_segment = tgt_doc[i]
+        target_chunk.append(tgt_segment)
+        target_length += len(tgt_segment)
+
+        if i == len(src_doc) - 1 or (source_length + target_length) >= target_seq_length:
+            if source_chunk and target_chunk:
+                tokens_a = []
+                for j in range(len(source_chunk)):
+                    tokens_a.extend(source_chunk[j])
+
+                tokens_b = []
+                for j in range(len(target_chunk)):
+                    tokens_b.extend(target_chunk[j])
+
+                truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng)
+
+                # sanity check
+                assert len(tokens_a) >= 1
+                assert len(tokens_b) >= 1
+
+                tokens = []
+                segment_ids = []
+                tokens.append("[CLS]")
+                segment_ids.append(0)
+                for token in tokens_a:
+                    tokens.append(token)
+                    segment_ids.append(0)
+
+                tokens.append('[SEP]')
+                segment_ids.append(0)
+
+                for token in tokens_b:
+                    tokens.append(token)
+                    segment_ids.append(1)
+
+                tokens.append('[SEP]')
+                segment_ids.append(1)
+
+                (token, masked_lm_positions,
+                masked_lm_labels) = create_masked_lm_predictions(
+                    tokens, masked_lm_prob, max_predictions_per_seq, vocab_words, rng
+                )
+
+                instance = TrainingInstance(
+                    tokens=tokens,
+                    segment_ids=segment_ids,
+                    is_random_next=False,
+                    masked_lm_positions=masked_lm_positions,
+                    masked_lm_labels=masked_lm_labels
+                )
+                instances.append(instance)
+            source_chunk = []
+            target_chunk = []
+        i += 1
     return instances
 
 
@@ -462,13 +616,35 @@ if __name__ == "__main__":
     for input_pattern in FLAGS.input_file.split(","):
         input_files.extend(tf.compat.v1.gfile.Glob(input_pattern))
 
-    logging.info("*** Reading from input files ***")
+    logging.info("*** Reading MLM from input files ***")
     for input_file in input_files:
         logging.info("  %s", input_file)
 
+    # expected file pattern: `en-as` so that we can extract en-as.as, en-as.en
+    src_files = []
+    tgt_files = []
+    for parallel_pattern in FLAGS.parallel_file.split(","):
+
+        basename = os.path.basename(parallel_pattern)
+        src, tgt = basename.split(',')[0].split('-')
+        src_files.extend(tf.compat.v1.gfile.Glob(f'{parallel_pattern}.{src}'))
+        tgt_files.extend(tf.compat.v1.gfile.Glob(f'{parallel_pattern}.{tgt}'))
+
+    logging.info("*** Reading TLM from input files ***")
+    for src, tgt in zip(src_files, tgt_files):
+        logging.info(f'src: {src}, tgt: {tgt}')
+
+
     rng = random.Random(FLAGS.random_seed)
-    instances = create_training_instances(
-        input_files, tokenizer, FLAGS.max_seq_length, FLAGS.dupe_factor,
+    # instances = create_training_instances(
+    #     input_files, tokenizer, FLAGS.max_seq_length, FLAGS.dupe_factor,
+    #     FLAGS.short_seq_prob, FLAGS.masked_lm_prob, FLAGS.max_predictions_per_seq,
+    #     rng)
+    # write_instance_to_example_files(instances, tokenizer, FLAGS.max_seq_length,
+    #                                 FLAGS.max_predictions_per_seq, output_files)
+
+    parallel_instances = create_parallel_instances(
+        src_files, tgt_files, tokenizer, FLAGS.max_seq_length, FLAGS.dupe_factor,
         FLAGS.short_seq_prob, FLAGS.masked_lm_prob, FLAGS.max_predictions_per_seq,
         rng)
 
@@ -477,5 +653,5 @@ if __name__ == "__main__":
     for output_file in output_files:
         logging.info("  %s", output_file)
 
-    write_instance_to_example_files(instances, tokenizer, FLAGS.max_seq_length,
+    write_instance_to_example_files(parallel_instances, tokenizer, FLAGS.max_seq_length,
                                     FLAGS.max_predictions_per_seq, output_files)
