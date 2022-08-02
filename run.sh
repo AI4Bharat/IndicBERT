@@ -28,6 +28,21 @@ python /home/cs21d409_cse_iitm_ac_in/IndicBERT/process_data/create_mlm_data.py \
     --masked_lm_prob=0.15 \
     --random_seed=12345
 
+python /home/cs21d409_cse_iitm_ac_in/IndicBERT/process_data/create_mlm_data.py \
+    --input_file=/home/cs21d409_cse_iitm_ac_in/IndicBERT/sample_text.txt \
+    --mlm_output_file=/home/cs21d409_cse_iitm_ac_in/IndicBERT/sample_mlm.tfrecord \
+    --tlm_output_file=/home/cs21d409_cse_iitm_ac_in/IndicBERT/sample_tlm.tfrecord \
+    --parallel_file=/home/cs21d409_cse_iitm_ac_in/IndicBERT/sample_data/en-as,/home/cs21d409_cse_iitm_ac_in/IndicBERT/sample_data/en-bn,/home/cs21d409_cse_iitm_ac_in/IndicBERT/sample_data/en-hi \
+    --vocab_file=/home/cs21d409_cse_iitm_ac_in/IndicBERT/wordpiece_250k/vocab.txt \
+    --do_lower_case=True \
+    --max_seq_length=512 \
+    --max_predictions_per_seq=77 \
+    --do_whole_word_mask=True \
+    --masked_lm_prob=0.15 \
+    --random_seed=12345 \
+    --dupe_factor 5 \
+    --num_workers 1
+
 # create tfrecord for training data
 python /home/cs21d409_cse_iitm_ac_in/IndicBERT/process_data/create_mlm_data.py \
     --input_file=  \

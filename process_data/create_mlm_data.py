@@ -42,7 +42,11 @@ flags.DEFINE_string("parallel_file", None,
                     "Input tsv file (or comma-separated list of files).")
 
 flags.DEFINE_string(
-    "output_file", None,
+    "mlm_output_file", None,
+    "Output TF example file (or comma-separated list of files).")
+
+flags.DEFINE_string(
+    "tlm_output_file", None,
     "Output TF example file (or comma-separated list of files).")
 
 flags.DEFINE_string("vocab_file", None,
@@ -619,7 +623,7 @@ def truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng):
 
 if __name__ == "__main__":
     flags.mark_flag_as_required("input_file")
-    flags.mark_flag_as_required("output_file")
+    flags.mark_flag_as_required("mlm_output_file")
     flags.mark_flag_as_required("vocab_file")
     logging.info("do_whole_word_mask: %s" % FLAGS.do_whole_word_mask)
     logging.set_verbosity(logging.INFO)
@@ -651,22 +655,20 @@ if __name__ == "__main__":
 
 
     rng = random.Random(FLAGS.random_seed)
-    # instances = create_training_instances(
-    #     input_files, tokenizer, FLAGS.max_seq_length, FLAGS.dupe_factor,
-    #     FLAGS.short_seq_prob, FLAGS.masked_lm_prob, FLAGS.max_predictions_per_seq,
-    #     rng)
-    # write_instance_to_example_files(instances, tokenizer, FLAGS.max_seq_length,
-    #                                 FLAGS.max_predictions_per_seq, output_files)
+    output_files = FLAGS.mlm_output_file.split(",")
+    instances = create_training_instances(
+        input_files, tokenizer, FLAGS.max_seq_length, FLAGS.dupe_factor,
+        FLAGS.short_seq_prob, FLAGS.masked_lm_prob, FLAGS.max_predictions_per_seq,
+        rng)
+    logging.info("*** Writing MLM to output files ***")
+    write_instance_to_example_files(instances, tokenizer, FLAGS.max_seq_length,
+                                    FLAGS.max_predictions_per_seq, output_files)
 
+    output_files = FLAGS.tlm_output_file.split(",")
     parallel_instances = create_parallel_instances(
         src_files, tgt_files, tokenizer, FLAGS.max_seq_length, FLAGS.dupe_factor,
         FLAGS.short_seq_prob, FLAGS.masked_lm_prob, FLAGS.max_predictions_per_seq,
         rng)
-
-    output_files = FLAGS.output_file.split(",")
-    logging.info("*** Writing to output files ***")
-    for output_file in output_files:
-        logging.info("  %s", output_file)
-
+    logging.info("*** Writing TLM to output files ***")
     write_instance_to_example_files(parallel_instances, tokenizer, FLAGS.max_seq_length,
                                     FLAGS.max_predictions_per_seq, output_files)
