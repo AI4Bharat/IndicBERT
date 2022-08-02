@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Create masked LM/next sentence masked_lm TF examples for BERT."""
+"""Create masked_lm TF examples for BERT."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -84,11 +84,9 @@ flags.DEFINE_integer("num_workers", 128, "Num. of CPU workers for parallel proce
 class TrainingInstance(object):
     """A single training instance (sentence pair)."""
 
-    def __init__(self, tokens, segment_ids, masked_lm_positions, masked_lm_labels,
-                 is_random_next):
+    def __init__(self, tokens, segment_ids, masked_lm_positions, masked_lm_labels):
         self.tokens = tokens
         self.segment_ids = segment_ids
-        self.is_random_next = is_random_next
         self.masked_lm_positions = masked_lm_positions
         self.masked_lm_labels = masked_lm_labels
 
@@ -97,7 +95,6 @@ class TrainingInstance(object):
         s += "tokens: %s\n" % (" ".join(
             [tokenization.printable_text(x) for x in self.tokens]))
         s += "segment_ids: %s\n" % (" ".join([str(x) for x in self.segment_ids]))
-        s += "is_random_next: %s\n" % self.is_random_next
         s += "masked_lm_positions: %s\n" % (" ".join(
             [str(x) for x in self.masked_lm_positions]))
         s += "masked_lm_labels: %s\n" % (" ".join(
@@ -143,8 +140,6 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
             masked_lm_ids.append(0)
             masked_lm_weights.append(0.0)
 
-        next_sentence_label = 1 if instance.is_random_next else 0
-
         features = collections.OrderedDict()
         features["input_ids"] = create_int_feature(input_ids)
         features["input_mask"] = create_int_feature(input_mask)
@@ -152,7 +147,6 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
         features["masked_lm_positions"] = create_int_feature(masked_lm_positions)
         features["masked_lm_ids"] = create_int_feature(masked_lm_ids)
         features["masked_lm_weights"] = create_float_feature(masked_lm_weights)
-        features["next_sentence_labels"] = create_int_feature([next_sentence_label])
 
         tf_example = tf.train.Example(features=tf.train.Features(feature=features))
 
@@ -267,10 +261,9 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
 
     # Input file format:
     # (1) One sentence per line. These should ideally be actual sentences, not
-    # entire paragraphs or arbitrary spans of text. (Because we use the
-    # sentence boundaries for the "next sentence prediction" task).
+    # entire paragraphs or arbitrary spans of text.
     # (2) Blank lines between documents. Document boundaries are needed so
-    # that the "next sentence prediction" task doesn't span between documents.
+    # that we don't use 2 unrelated sentences for attending to each other
     for input_file in input_files:
         with tf.io.gfile.GFile(input_file, "r") as reader:
             while True:
@@ -386,7 +379,6 @@ def create_parallel_instances_from_document(
                 instance = TrainingInstance(
                     tokens=tokens,
                     segment_ids=segment_ids,
-                    is_random_next=False,
                     masked_lm_positions=masked_lm_positions,
                     masked_lm_labels=masked_lm_labels
                 )
@@ -414,8 +406,8 @@ def create_instances_from_document(
     """Creates `TrainingInstance`s for a single document."""
     document = all_documents[document_index]
 
-    # Account for [CLS], [SEP], [SEP]
-    max_num_tokens = max_seq_length - 3
+    # Account for [CLS], [SEP]
+    max_num_tokens = max_seq_length - 2
 
     # We *usually* want to fill up the entire sequence since we are padding
     # to `max_seq_length` anyways, so short sequences are generally wasted
@@ -428,11 +420,7 @@ def create_instances_from_document(
     if rng.random() < short_seq_prob:
         target_seq_length = rng.randint(2, max_num_tokens)
 
-    # We DON'T just concatenate all of the tokens from a document into a long
-    # sequence and choose an arbitrary split point because this would make the
-    # next sentence prediction task too easy. Instead, we split the input into
-    # segments "A" and "B" based on the actual "sentences" provided by the user
-    # input.
+
     instances = []
     current_chunk = []
     current_length = 0
@@ -443,51 +431,16 @@ def create_instances_from_document(
         current_length += len(segment)
         if i == len(document) - 1 or current_length >= target_seq_length:
             if current_chunk:
-                # `a_end` is how many segments from `current_chunk` go into the `A`
-                # (first) sentence.
-                a_end = 1
-                if len(current_chunk) >= 2:
-                    a_end = rng.randint(1, len(current_chunk) - 1)
-
+                # we change this to single sentence input with a single [CLS] and [SEP]
+                a_end = len(current_chunk)
                 tokens_a = []
                 for j in range(a_end):
                     tokens_a.extend(current_chunk[j])
 
                 tokens_b = []
-                # Random next
-                is_random_next = False
-                if len(current_chunk) == 1 or rng.random() < 0.5:
-                    is_random_next = True
-                    target_b_length = target_seq_length - len(tokens_a)
-
-                    # This should rarely go for more than one iteration for large
-                    # corpora. However, just to be careful, we try to make sure that
-                    # the random document is not the same as the document
-                    # we're processing.
-                    for _ in range(10):
-                        random_document_index = rng.randint(0, len(all_documents) - 1)
-                        if random_document_index != document_index:
-                            break
-
-                    random_document = all_documents[random_document_index]
-                    random_start = rng.randint(0, len(random_document) - 1)
-                    for j in range(random_start, len(random_document)):
-                        tokens_b.extend(random_document[j])
-                        if len(tokens_b) >= target_b_length:
-                            break
-                    # We didn't actually use these segments so we "put them back" so
-                    # they don't go to waste.
-                    num_unused_segments = len(current_chunk) - a_end
-                    i -= num_unused_segments
-                # Actual next
-                else:
-                    is_random_next = False
-                    for j in range(a_end, len(current_chunk)):
-                        tokens_b.extend(current_chunk[j])
                 truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng)
 
                 assert len(tokens_a) >= 1
-                assert len(tokens_b) >= 1
 
                 tokens = []
                 segment_ids = []
@@ -500,11 +453,11 @@ def create_instances_from_document(
                 tokens.append("[SEP]")
                 segment_ids.append(0)
 
-                for token in tokens_b:
-                    tokens.append(token)
-                    segment_ids.append(1)
-                tokens.append("[SEP]")
-                segment_ids.append(1)
+                # for token in tokens_b:
+                #     tokens.append(token)
+                #     segment_ids.append(1)
+                # tokens.append("[SEP]")
+                # segment_ids.append(1)
 
                 (tokens, masked_lm_positions,
                  masked_lm_labels) = create_masked_lm_predictions(
@@ -512,7 +465,6 @@ def create_instances_from_document(
                 instance = TrainingInstance(
                     tokens=tokens,
                     segment_ids=segment_ids,
-                    is_random_next=is_random_next,
                     masked_lm_positions=masked_lm_positions,
                     masked_lm_labels=masked_lm_labels)
                 instances.append(instance)
