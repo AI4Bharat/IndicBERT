@@ -194,14 +194,13 @@ def create_parallel_instances(src_files, tgt_files, tokenizer, max_seq_length,
     """Create `TrainingInstance`s from parallel text."""
 
     # Input file format:
-    # tsv file with 2 columns.
-    # Column 0: with English text
-    # Column 1: with in-language text
+    # 2 text files one each with source and target data
+    # each line containing one sentence and a \n separating 2 paragraphs
+    # num. lines source == num. lines of target
 
     src_documents = [[]]
     tgt_documents = [[]]
     for src_file, tgt_file in zip(src_files, tgt_files):
-        # df = pd.read_csv(parallel_file, sep='\t', names=['src', 'tgt'])
         with tf.io.gfile.GFile(src_file, "r") as reader:
             while True:
                 line = tokenization.convert_to_unicode(reader.readline())
@@ -215,6 +214,7 @@ def create_parallel_instances(src_files, tgt_files, tokenizer, max_seq_length,
                 tokens = tokenizer.tokenize(line)
                 if tokens:
                     src_documents[-1].append(tokens)
+        src_documents.append([])
 
         with tf.io.gfile.GFile(tgt_file, "r") as reader:
             while True:
@@ -229,6 +229,7 @@ def create_parallel_instances(src_files, tgt_files, tokenizer, max_seq_length,
                 tokens = tokenizer.tokenize(line)
                 if tokens:
                     tgt_documents[-1].append(tokens)
+        tgt_documents.append([])
 
     src_documents = [x for x in src_documents if x]
     tgt_documents = [x for x in tgt_documents if x]
@@ -280,6 +281,7 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
                 tokens = tokenizer.tokenize(line)
                 if tokens:
                     all_documents[-1].append(tokens)
+        all_documents.append([])
 
     # Remove empty documents
     all_documents = [x for x in all_documents if x]
@@ -329,14 +331,16 @@ def create_parallel_instances_from_document(
     i = 0
     while i < len(src_doc):
         src_segment = src_doc[i]
-        source_chunk.append(src_segment)
-        source_length += len(src_segment)
-
         tgt_segment = tgt_doc[i]
-        target_chunk.append(tgt_segment)
-        target_length += len(tgt_segment)
 
-        if i == len(src_doc) - 1 or (source_length + target_length) >= target_seq_length:
+        if source_length + len(src_segment) + target_length + len(tgt_segment) < target_seq_length:
+            source_chunk.append(src_segment)
+            source_length += len(src_segment)
+
+            target_chunk.append(tgt_segment)
+            target_length += len(tgt_segment)
+
+        if i == len(src_doc) - 1 or source_length + len(src_segment) + target_length + len(tgt_segment) > target_seq_length:
             if source_chunk and target_chunk:
                 tokens_a = []
                 for j in range(len(source_chunk)):
@@ -383,8 +387,19 @@ def create_parallel_instances_from_document(
                     masked_lm_labels=masked_lm_labels
                 )
                 instances.append(instance)
+
             source_chunk = []
             target_chunk = []
+
+            if i == len(src_doc) - 1:
+                source_chunk.append(src_segment)
+                source_length = len(src_segment)
+
+                target_chunk.append(tgt_segment)
+                target_length = len(tgt_segment)
+            else:
+                source_length = 0
+                target_length = 0
         i += 1
     return instances
 
