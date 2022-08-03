@@ -36,17 +36,13 @@ flags = tf.compat.v1.app.flags
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string("input_file", None,
-                    "Input raw text file (or comma-separated list of files).")
+                    "Input raw text file (or comma-separated list of files). if input_file_type is parallel then expected input format is src-tgt where src-tgt.src and src-tgt.tgt exist")
 
-flags.DEFINE_string("parallel_file", None,
-                    "Input tsv file (or comma-separated list of files).")
-
-flags.DEFINE_string(
-    "mlm_output_file", None,
-    "Output TF example file (or comma-separated list of files).")
+flags.DEFINE_string("input_file_type", None,
+                    "monolingual or parallel")
 
 flags.DEFINE_string(
-    "tlm_output_file", None,
+    "output_file", None,
     "Output TF example file (or comma-separated list of files).")
 
 flags.DEFINE_string("vocab_file", None,
@@ -592,7 +588,7 @@ def truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng):
 
 if __name__ == "__main__":
     flags.mark_flag_as_required("input_file")
-    flags.mark_flag_as_required("mlm_output_file")
+    flags.mark_flag_as_required("output_file")
     flags.mark_flag_as_required("vocab_file")
     logging.info("do_whole_word_mask: %s" % FLAGS.do_whole_word_mask)
     logging.set_verbosity(logging.INFO)
@@ -604,40 +600,45 @@ if __name__ == "__main__":
     for input_pattern in FLAGS.input_file.split(","):
         input_files.extend(tf.compat.v1.gfile.Glob(input_pattern))
 
-    logging.info("*** Reading MLM from input files ***")
-    for input_file in input_files:
-        logging.info("  %s", input_file)
+    if FLAGS.input_file_type == "monolingual":
+        logging.info("*** Reading MLM from input files ***")
+        for input_file in input_files:
+            logging.info("  %s", input_file)
 
-    # expected file pattern: `en-as` so that we can extract en-as.as, en-as.en
-    src_files = []
-    tgt_files = []
-    for parallel_pattern in FLAGS.parallel_file.split(","):
+        rng = random.Random(FLAGS.random_seed)
+        output_files = FLAGS.output_file.split(",")
+        instances = create_training_instances(
+            input_files, tokenizer, FLAGS.max_seq_length, FLAGS.dupe_factor,
+            FLAGS.short_seq_prob, FLAGS.masked_lm_prob, FLAGS.max_predictions_per_seq,
+            rng)
+        logging.info("*** Writing MLM to output files ***")
+        write_instance_to_example_files(instances, tokenizer, FLAGS.max_seq_length,
+                                        FLAGS.max_predictions_per_seq, output_files)
 
-        basename = os.path.basename(parallel_pattern)
-        src, tgt = basename.split(',')[0].split('-')
-        src_files.extend(tf.compat.v1.gfile.Glob(f'{parallel_pattern}.{src}'))
-        tgt_files.extend(tf.compat.v1.gfile.Glob(f'{parallel_pattern}.{tgt}'))
+    elif FLAGS.input_file_type == "parallel":
+        # expected file pattern: `en-as` so that we can extract en-as.as, en-as.en
+        src_files = []
+        tgt_files = []
+        for parallel_pattern in FLAGS.input_file.split(","):
 
-    logging.info("*** Reading TLM from input files ***")
-    for src, tgt in zip(src_files, tgt_files):
-        logging.info(f'src: {src}, tgt: {tgt}')
+            basename = os.path.basename(parallel_pattern)
+            src, tgt = basename.split(',')[0].split('-')
+            src_files.extend(tf.compat.v1.gfile.Glob(f'{parallel_pattern}.{src}'))
+            tgt_files.extend(tf.compat.v1.gfile.Glob(f'{parallel_pattern}.{tgt}'))
 
+        logging.info("*** Reading TLM from input files ***")
+        for src, tgt in zip(src_files, tgt_files):
+            logging.info(f'src: {src}, tgt: {tgt}')
 
-    rng = random.Random(FLAGS.random_seed)
-    output_files = FLAGS.mlm_output_file.split(",")
-    instances = create_training_instances(
-        input_files, tokenizer, FLAGS.max_seq_length, FLAGS.dupe_factor,
-        FLAGS.short_seq_prob, FLAGS.masked_lm_prob, FLAGS.max_predictions_per_seq,
-        rng)
-    logging.info("*** Writing MLM to output files ***")
-    write_instance_to_example_files(instances, tokenizer, FLAGS.max_seq_length,
-                                    FLAGS.max_predictions_per_seq, output_files)
+        rng = random.Random(FLAGS.random_seed)
+        output_files = FLAGS.output_file.split(",")
+        parallel_instances = create_parallel_instances(
+            src_files, tgt_files, tokenizer, FLAGS.max_seq_length, FLAGS.dupe_factor,
+            FLAGS.short_seq_prob, FLAGS.masked_lm_prob, FLAGS.max_predictions_per_seq,
+            rng)
+        logging.info("*** Writing TLM to output files ***")
+        write_instance_to_example_files(parallel_instances, tokenizer, FLAGS.max_seq_length,
+                                        FLAGS.max_predictions_per_seq, output_files)
 
-    output_files = FLAGS.tlm_output_file.split(",")
-    parallel_instances = create_parallel_instances(
-        src_files, tgt_files, tokenizer, FLAGS.max_seq_length, FLAGS.dupe_factor,
-        FLAGS.short_seq_prob, FLAGS.masked_lm_prob, FLAGS.max_predictions_per_seq,
-        rng)
-    logging.info("*** Writing TLM to output files ***")
-    write_instance_to_example_files(parallel_instances, tokenizer, FLAGS.max_seq_length,
-                                    FLAGS.max_predictions_per_seq, output_files)
+    else:
+        print("Please pass correct argument for input_file_type: monolingual or parallel")
