@@ -241,13 +241,12 @@ def create_parallel_instances(src_files, tgt_files, tokenizer, max_seq_length,
     vocab_words = list(tokenizer.vocab.keys())
     instances = []
     for _ in range(dupe_factor):
-        for index in range(len(src_documents)):
-            instances.extend(
-                create_parallel_instances_from_document(
-                    src_documents, tgt_documents, index, max_seq_length, short_seq_prob,
-                    masked_lm_prob, max_predictions_per_seq, vocab_words, rng 
-                )
+        instances.extend(
+            create_parallel_instances_from_document(
+                src_documents, tgt_documents, max_seq_length, short_seq_prob,
+                masked_lm_prob, max_predictions_per_seq, vocab_words, rng 
             )
+        )
 
     rng.shuffle(instances)
     return instances
@@ -287,14 +286,14 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
     vocab_words = list(tokenizer.vocab.keys())
     instances = []
     for _ in range(dupe_factor):
-        for document_index in range(len(all_documents)):
-            instances.extend(
-            create_instances_from_document(
-                all_documents, document_index, max_seq_length, short_seq_prob,
-                masked_lm_prob, max_predictions_per_seq, vocab_words, rng))
+        instances.extend(
+        create_instances_from_document(
+            all_documents, max_seq_length, short_seq_prob,
+            masked_lm_prob, max_predictions_per_seq, vocab_words, rng))
 
         # TODO: Outputs are not as exptected. Check again later
-        # document_instance = Parallel(n_jobs=FLAGS.num_workers, backend='loky', verbose=500)( \
+        # document_instance = Parallel(n_jobs=FLAGS.num_workers, backend='multiprocessing', verbose=500)( \
+        # document_instance = Parallel(n_jobs=FLAGS.num_workers, prefer="threads", verbose=500)( \
         #                     delayed(create_instances_from_document) \
         #                     (all_documents, document_index, max_seq_length, short_seq_prob, masked_lm_prob, max_predictions_per_seq, vocab_words, rng)
         #                     for document_index in tqdm(range(len(all_documents))) \
@@ -305,174 +304,183 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
     return instances
 
 def create_parallel_instances_from_document(
-    src_documents, tgt_documents, idx, max_seq_length, short_seq_prob,
+    src_documents, tgt_documents, max_seq_length, short_seq_prob,
     masked_lm_prob, max_predictions_per_seq, vocab_words, rng):
 
-    src_doc = src_documents[idx]
-    tgt_doc = tgt_documents[idx]
+    all_instances = []
+    for idx in range(len(src_documents)):
 
-    # Account for [CLS], [SEP], [SEP]
-    max_num_tokens = max_seq_length - 3
+        src_doc = src_documents[idx]
+        tgt_doc = tgt_documents[idx]
 
-    # check `create_instances_from_document` for documentation
-    target_seq_length = max_num_tokens
-    if rng.random() < short_seq_prob:
-        target_seq_length = rng.randint(2, max_num_tokens)
+        # Account for [CLS], [SEP], [SEP]
+        max_num_tokens = max_seq_length - 3
 
-    instances = []
-    source_chunk = []
-    target_chunk = []
-    source_length = 0
-    target_length = 0
+        # check `create_instances_from_document` for documentation
+        target_seq_length = max_num_tokens
+        if rng.random() < short_seq_prob:
+            target_seq_length = rng.randint(2, max_num_tokens)
 
-    i = 0
-    while i < len(src_doc):
-        src_segment = src_doc[i]
-        tgt_segment = tgt_doc[i]
+        instances = []
+        source_chunk = []
+        target_chunk = []
+        source_length = 0
+        target_length = 0
 
-        if source_length + len(src_segment) + target_length + len(tgt_segment) < target_seq_length:
-            source_chunk.append(src_segment)
-            source_length += len(src_segment)
+        i = 0
+        while i < len(src_doc):
+            src_segment = src_doc[i]
+            tgt_segment = tgt_doc[i]
 
-            target_chunk.append(tgt_segment)
-            target_length += len(tgt_segment)
-
-        if i == len(src_doc) - 1 or source_length + len(src_segment) + target_length + len(tgt_segment) > target_seq_length:
-            if source_chunk and target_chunk:
-                tokens_a = []
-                for j in range(len(source_chunk)):
-                    tokens_a.extend(source_chunk[j])
-
-                tokens_b = []
-                for j in range(len(target_chunk)):
-                    tokens_b.extend(target_chunk[j])
-
-                truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng)
-
-                # sanity check
-                assert len(tokens_a) >= 1
-                assert len(tokens_b) >= 1
-
-                tokens = []
-                segment_ids = []
-                tokens.append("[CLS]")
-                segment_ids.append(0)
-                for token in tokens_a:
-                    tokens.append(token)
-                    segment_ids.append(0)
-
-                tokens.append('[SEP]')
-                segment_ids.append(0)
-
-                for token in tokens_b:
-                    tokens.append(token)
-                    segment_ids.append(1)
-
-                tokens.append('[SEP]')
-                segment_ids.append(1)
-
-                (token, masked_lm_positions,
-                masked_lm_labels) = create_masked_lm_predictions(
-                    tokens, masked_lm_prob, max_predictions_per_seq, vocab_words, rng
-                )
-
-                instance = TrainingInstance(
-                    tokens=tokens,
-                    segment_ids=segment_ids,
-                    masked_lm_positions=masked_lm_positions,
-                    masked_lm_labels=masked_lm_labels
-                )
-                instances.append(instance)
-
-            source_chunk = []
-            target_chunk = []
-
-            if i == len(src_doc) - 1:
+            if source_length + len(src_segment) + target_length + len(tgt_segment) < target_seq_length:
                 source_chunk.append(src_segment)
-                source_length = len(src_segment)
+                source_length += len(src_segment)
 
                 target_chunk.append(tgt_segment)
-                target_length = len(tgt_segment)
-            else:
-                source_length = 0
-                target_length = 0
-        i += 1
-    return instances
+                target_length += len(tgt_segment)
+
+            if i == len(src_doc) - 1 or source_length + len(src_segment) + target_length + len(tgt_segment) > target_seq_length:
+                if source_chunk and target_chunk:
+                    tokens_a = []
+                    for j in range(len(source_chunk)):
+                        tokens_a.extend(source_chunk[j])
+
+                    tokens_b = []
+                    for j in range(len(target_chunk)):
+                        tokens_b.extend(target_chunk[j])
+
+                    truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng)
+
+                    # sanity check
+                    assert len(tokens_a) >= 1
+                    assert len(tokens_b) >= 1
+
+                    tokens = []
+                    segment_ids = []
+                    tokens.append("[CLS]")
+                    segment_ids.append(0)
+                    for token in tokens_a:
+                        tokens.append(token)
+                        segment_ids.append(0)
+
+                    tokens.append('[SEP]')
+                    segment_ids.append(0)
+
+                    for token in tokens_b:
+                        tokens.append(token)
+                        segment_ids.append(1)
+
+                    tokens.append('[SEP]')
+                    segment_ids.append(1)
+
+                    (token, masked_lm_positions,
+                    masked_lm_labels) = create_masked_lm_predictions(
+                        tokens, masked_lm_prob, max_predictions_per_seq, vocab_words, rng
+                    )
+
+                    instance = TrainingInstance(
+                        tokens=tokens,
+                        segment_ids=segment_ids,
+                        masked_lm_positions=masked_lm_positions,
+                        masked_lm_labels=masked_lm_labels
+                    )
+                    instances.append(instance)
+
+                source_chunk = []
+                target_chunk = []
+
+                if i == len(src_doc) - 1:
+                    source_chunk.append(src_segment)
+                    source_length = len(src_segment)
+
+                    target_chunk.append(tgt_segment)
+                    target_length = len(tgt_segment)
+                else:
+                    source_length = 0
+                    target_length = 0
+            i += 1
+
+        all_instances.extend(instances)
+    return all_instances
 
 
 def create_instances_from_document(
-    all_documents, document_index, max_seq_length, short_seq_prob,
+    all_documents, max_seq_length, short_seq_prob,
     masked_lm_prob, max_predictions_per_seq, vocab_words, rng):
     """Creates `TrainingInstance`s for a single document."""
-    document = all_documents[document_index]
+    all_instances = []
+    for document_index in range(len(all_documents)):
+        document = all_documents[document_index]
 
-    # Account for [CLS], [SEP]
-    max_num_tokens = max_seq_length - 2
+        # Account for [CLS], [SEP]
+        max_num_tokens = max_seq_length - 2
 
-    # We *usually* want to fill up the entire sequence since we are padding
-    # to `max_seq_length` anyways, so short sequences are generally wasted
-    # computation. However, we *sometimes*
-    # (i.e., short_seq_prob == 0.1 == 10% of the time) want to use shorter
-    # sequences to minimize the mismatch between pre-training and fine-tuning.
-    # The `target_seq_length` is just a rough target however, whereas
-    # `max_seq_length` is a hard limit.
-    target_seq_length = max_num_tokens
-    if rng.random() < short_seq_prob:
-        target_seq_length = rng.randint(2, max_num_tokens)
+        # We *usually* want to fill up the entire sequence since we are padding
+        # to `max_seq_length` anyways, so short sequences are generally wasted
+        # computation. However, we *sometimes*
+        # (i.e., short_seq_prob == 0.1 == 10% of the time) want to use shorter
+        # sequences to minimize the mismatch between pre-training and fine-tuning.
+        # The `target_seq_length` is just a rough target however, whereas
+        # `max_seq_length` is a hard limit.
+        target_seq_length = max_num_tokens
+        if rng.random() < short_seq_prob:
+            target_seq_length = rng.randint(2, max_num_tokens)
 
 
-    instances = []
-    current_chunk = []
-    current_length = 0
-    i = 0
-    while i < len(document):
-        segment = document[i]
-        current_chunk.append(segment)
-        current_length += len(segment)
-        if i == len(document) - 1 or current_length >= target_seq_length:
-            if current_chunk:
-                # we change this to single sentence input with a single [CLS] and [SEP]
-                a_end = len(current_chunk)
-                tokens_a = []
-                for j in range(a_end):
-                    tokens_a.extend(current_chunk[j])
+        instances = []
+        current_chunk = []
+        current_length = 0
+        i = 0
+        while i < len(document):
+            segment = document[i]
+            current_chunk.append(segment)
+            current_length += len(segment)
+            if i == len(document) - 1 or current_length >= target_seq_length:
+                if current_chunk:
+                    # we change this to single sentence input with a single [CLS] and [SEP]
+                    a_end = len(current_chunk)
+                    tokens_a = []
+                    for j in range(a_end):
+                        tokens_a.extend(current_chunk[j])
 
-                tokens_b = []
-                truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng)
+                    tokens_b = []
+                    truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng)
 
-                assert len(tokens_a) >= 1
+                    assert len(tokens_a) >= 1
 
-                tokens = []
-                segment_ids = []
-                tokens.append("[CLS]")
-                segment_ids.append(0)
-                for token in tokens_a:
-                    tokens.append(token)
+                    tokens = []
+                    segment_ids = []
+                    tokens.append("[CLS]")
+                    segment_ids.append(0)
+                    for token in tokens_a:
+                        tokens.append(token)
+                        segment_ids.append(0)
+
+                    tokens.append("[SEP]")
                     segment_ids.append(0)
 
-                tokens.append("[SEP]")
-                segment_ids.append(0)
+                    # for token in tokens_b:
+                    #     tokens.append(token)
+                    #     segment_ids.append(1)
+                    # tokens.append("[SEP]")
+                    # segment_ids.append(1)
 
-                # for token in tokens_b:
-                #     tokens.append(token)
-                #     segment_ids.append(1)
-                # tokens.append("[SEP]")
-                # segment_ids.append(1)
+                    (tokens, masked_lm_positions,
+                    masked_lm_labels) = create_masked_lm_predictions(
+                        tokens, masked_lm_prob, max_predictions_per_seq, vocab_words, rng)
+                    instance = TrainingInstance(
+                        tokens=tokens,
+                        segment_ids=segment_ids,
+                        masked_lm_positions=masked_lm_positions,
+                        masked_lm_labels=masked_lm_labels)
+                    instances.append(instance)
+                current_chunk = []
+                current_length = 0
+            i += 1
 
-                (tokens, masked_lm_positions,
-                 masked_lm_labels) = create_masked_lm_predictions(
-                     tokens, masked_lm_prob, max_predictions_per_seq, vocab_words, rng)
-                instance = TrainingInstance(
-                    tokens=tokens,
-                    segment_ids=segment_ids,
-                    masked_lm_positions=masked_lm_positions,
-                    masked_lm_labels=masked_lm_labels)
-                instances.append(instance)
-            current_chunk = []
-            current_length = 0
-        i += 1
+        all_instances.extend(instances)
 
-    return instances
+    return all_instances
 
 
 MaskedLmInstance = collections.namedtuple("MaskedLmInstance",
