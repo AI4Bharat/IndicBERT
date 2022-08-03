@@ -240,13 +240,21 @@ def create_parallel_instances(src_files, tgt_files, tokenizer, max_seq_length,
 
     vocab_words = list(tokenizer.vocab.keys())
     instances = []
-    for _ in range(dupe_factor):
-        instances.extend(
-            create_parallel_instances_from_document(
-                src_documents, tgt_documents, max_seq_length, short_seq_prob,
-                masked_lm_prob, max_predictions_per_seq, vocab_words, rng 
-            )
-        )
+    # for _ in range(dupe_factor):
+    #     instances.extend(
+    #         create_parallel_instances_from_document(
+    #             src_documents, tgt_documents, max_seq_length, short_seq_prob,
+    #             masked_lm_prob, max_predictions_per_seq, vocab_words, rng 
+    #         )
+    #     )
+
+    # parallel implementation
+    document_instance = Parallel(n_jobs=FLAGS.num_workers, prefer="threads", verbose=500)( \
+                        delayed(create_parallel_instances_from_document) \
+                        (src_documents, tgt_documents, max_seq_length, short_seq_prob, masked_lm_prob, max_predictions_per_seq, vocab_words, rng)
+                        for _ in range(dupe_factor) \
+                        )
+    instances += list(itertools.chain.from_iterable(document_instance))
 
     rng.shuffle(instances)
     return instances
@@ -285,20 +293,21 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
 
     vocab_words = list(tokenizer.vocab.keys())
     instances = []
-    for _ in range(dupe_factor):
-        instances.extend(
-        create_instances_from_document(
-            all_documents, max_seq_length, short_seq_prob,
-            masked_lm_prob, max_predictions_per_seq, vocab_words, rng))
+    # for _ in range(dupe_factor):
+    #     instances.extend(
+    #     create_instances_from_document(
+    #         all_documents, max_seq_length, short_seq_prob,
+    #         masked_lm_prob, max_predictions_per_seq, vocab_words, rng))
 
-        # TODO: Outputs are not as exptected. Check again later
-        # document_instance = Parallel(n_jobs=FLAGS.num_workers, backend='multiprocessing', verbose=500)( \
-        # document_instance = Parallel(n_jobs=FLAGS.num_workers, prefer="threads", verbose=500)( \
-        #                     delayed(create_instances_from_document) \
-        #                     (all_documents, document_index, max_seq_length, short_seq_prob, masked_lm_prob, max_predictions_per_seq, vocab_words, rng)
-        #                     for document_index in tqdm(range(len(all_documents))) \
-        #                     )
-        # instances += list(itertools.chain.from_iterable(document_instance))
+    # parallel implementation
+    # TODO: Outputs are not as exptected. Check again later
+    # document_instance = Parallel(n_jobs=FLAGS.num_workers, backend='multiprocessing', verbose=500)( \
+    document_instance = Parallel(n_jobs=FLAGS.num_workers, prefer="threads", verbose=500)( \
+                        delayed(create_instances_from_document) \
+                        (all_documents, max_seq_length, short_seq_prob, masked_lm_prob, max_predictions_per_seq, vocab_words, rng)
+                        for _ in range(dupe_factor) \
+                        )
+    instances += list(itertools.chain.from_iterable(document_instance))
 
     rng.shuffle(instances)
     return instances
