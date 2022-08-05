@@ -28,11 +28,11 @@ python /home/cs21d409_cse_iitm_ac_in/IndicBERT/process_data/create_mlm_data.py \
     --masked_lm_prob=0.15 \
     --random_seed=12345
 
+# create MLM tfrecord for training data
 python /home/cs21d409_cse_iitm_ac_in/IndicBERT/process_data/create_mlm_data.py \
     --input_file=/home/cs21d409_cse_iitm_ac_in/IndicBERT/sample_text.txt \
-    --mlm_output_file=/home/cs21d409_cse_iitm_ac_in/IndicBERT/sample_mlm.tfrecord \
-    --tlm_output_file=/home/cs21d409_cse_iitm_ac_in/IndicBERT/sample_tlm.tfrecord \
-    --parallel_file=/home/cs21d409_cse_iitm_ac_in/IndicBERT/sample_data/en-as,/home/cs21d409_cse_iitm_ac_in/IndicBERT/sample_data/en-bn,/home/cs21d409_cse_iitm_ac_in/IndicBERT/sample_data/en-hi \
+    --input_file_type=monolingual \
+    --output_file=/home/cs21d409_cse_iitm_ac_in/IndicBERT/sample_mlm.tfrecord \
     --vocab_file=/home/cs21d409_cse_iitm_ac_in/IndicBERT/wordpiece_250k/vocab.txt \
     --do_lower_case=True \
     --max_seq_length=512 \
@@ -41,30 +41,32 @@ python /home/cs21d409_cse_iitm_ac_in/IndicBERT/process_data/create_mlm_data.py \
     --masked_lm_prob=0.15 \
     --random_seed=12345 \
     --dupe_factor 5 \
-    --num_workers 1
+    --num_workers 2
 
-# create tfrecord for training data
+# create TLM tfrecord for training data
 python /home/cs21d409_cse_iitm_ac_in/IndicBERT/process_data/create_mlm_data.py \
-    --input_file=  \
-    --output_file= \
+    --input_file=/home/cs21d409_cse_iitm_ac_in/IndicBERT/sample_data/en-as,/home/cs21d409_cse_iitm_ac_in/IndicBERT/sample_data/en-bn,/home/cs21d409_cse_iitm_ac_in/IndicBERT/sample_data/en-hi \
+    --input_file_type=parallel \
+    --output_file=/home/cs21d409_cse_iitm_ac_in/IndicBERT/sample_tlm.tfrecord \
     --vocab_file=/home/cs21d409_cse_iitm_ac_in/IndicBERT/wordpiece_250k/vocab.txt \
     --do_lower_case=True \
     --max_seq_length=512 \
     --max_predictions_per_seq=77 \
     --do_whole_word_mask=True \
     --masked_lm_prob=0.15 \
-    --random_seed=12345
-
+    --random_seed=12345 \
+    --dupe_factor 5 \
+    --num_workers 2
 
 # train MLM and TLM
 python /home/cs21d409_cse_iitm_ac_in/IndicBERT/train/run_pretraining.py \
-    --input_file=gs://indic-bert/test_tpu/input/test_examples.tfrecord \
-    --output_dir=gs://indic-bert/large_tpu_test/ \
+    --input_file=gs://indic-bert/test_tpu/input/sample_mlm.tfrecord,gs://indic-bert/test_tpu/input/sample_tlm.tfrecord \
+    --output_dir=gs://indic-bert/mlm_tlm_test/ \
     --do_train=True \
     --bert_config_file=/home/cs21d409_cse_iitm_ac_in/IndicBERT/config.json \
     --train_batch_size=4096 \
     --max_seq_length=512 \
-    --max_predictions_per_seq=20 \
+    --max_predictions_per_seq=77 \
     --num_train_steps=100000 \
     --num_warmup_steps=10000 \
     --learning_rate=2e-5 \

@@ -1,7 +1,9 @@
+# monolingual data creation
 create_mlm_data () {
    python create_mlm_data.py \
         --input_file=/nlsasfs/home/ai4bharat/gramesh/bertteam/IndicXLM/data/gcp/monolingual_sents/$1.txt \
         --output_file=/nlsasfs/home/ai4bharat/gramesh/bertteam/IndicXLM/data/gcp/monolingual_sents/$1.tfrecord \
+        --input_file_type=monolingual \
         --vocab_file=/nlsasfs/home/ai4bharat/gramesh/bertteam/IndicXLM/data/gcp/wordpiece_250k/vocab.txt \
         --do_lower_case=True \
         --max_seq_length=512 \
