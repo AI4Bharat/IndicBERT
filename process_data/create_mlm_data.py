@@ -195,6 +195,7 @@ def create_parallel_instances(src_files, tgt_files, tokenizer, max_seq_length,
 
     src_documents = [[]]
     tgt_documents = [[]]
+    start = time.time()
     for src_file, tgt_file in zip(src_files, tgt_files):
         with tf.io.gfile.GFile(src_file, "r") as reader:
             while True:
@@ -225,6 +226,8 @@ def create_parallel_instances(src_files, tgt_files, tokenizer, max_seq_length,
                 if tokens:
                     tgt_documents[-1].append(tokens)
         tgt_documents.append([])
+    end = time.time()
+    logging.info(f'*** time to tokenize: {end-start}')
 
     src_documents = [x for x in src_documents if x]
     tgt_documents = [x for x in tgt_documents if x]
@@ -618,6 +621,9 @@ if __name__ == "__main__":
         for parallel_pattern in FLAGS.input_file.split(","):
 
             basename = os.path.basename(parallel_pattern)
+
+            # to handle splits
+            basename = basename.split('.')[0]
             src, tgt = basename.split(',')[0].split('-')
             src_files.extend(tf.compat.v1.gfile.Glob(f'{parallel_pattern}.{src}'))
             tgt_files.extend(tf.compat.v1.gfile.Glob(f'{parallel_pattern}.{tgt}'))
