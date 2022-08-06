@@ -253,7 +253,7 @@ def create_parallel_instances(src_files, tgt_files, tokenizer, max_seq_length,
         document_instance = Parallel(n_jobs=FLAGS.num_workers, prefer="threads", verbose=1)(
                 delayed(create_parallel_instances_from_document) \
                     (src_documents, tgt_documents, doc_index, max_seq_length, short_seq_prob, masked_lm_prob, max_predictions_per_seq, vocab_words, rng) \
-                    for doc_index in range(len(all_documents))
+                    for doc_index in range(len(src_documents))
             )  
         instances += list(itertools.chain.from_iterable(document_instance))
 
