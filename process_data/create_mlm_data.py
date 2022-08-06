@@ -247,7 +247,7 @@ def create_parallel_instances(src_files, tgt_files, tokenizer, max_seq_length,
 
     # parallel implementation
     for _ in range(dupe_factor):
-        document_instance = Parallel(n_jobs=FLAGS.num_workers, prefer="threads", verbose=500)(
+        document_instance = Parallel(n_jobs=FLAGS.num_workers, prefer="threads", verbose=1)(
                 delayed(create_parallel_instances_from_document) \
                     (src_documents, tgt_documents, doc_index, max_seq_length, short_seq_prob, masked_lm_prob, max_predictions_per_seq, vocab_words, rng) \
                     for doc_index in range(len(all_documents))
@@ -302,7 +302,7 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
 
     # parallel implementation
     for _ in range(dupe_factor):
-        document_instance = Parallel(n_jobs=FLAGS.num_workers, prefer="threads", verbose=500)(
+        document_instance = Parallel(n_jobs=FLAGS.num_workers, prefer="threads", verbose=1)(
                 delayed(create_instances_from_document) \
                     (all_documents, doc_index, max_seq_length, short_seq_prob, masked_lm_prob, max_predictions_per_seq, vocab_words, rng) \
                     for doc_index in range(len(all_documents))
