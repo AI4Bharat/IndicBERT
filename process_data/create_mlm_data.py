@@ -258,7 +258,6 @@ def create_parallel_instances(src_files, tgt_files, tokenizer, max_seq_length,
         x = [l for l in document_instance if l]
         instances += list(itertools.chain.from_iterable(x))
 
-    rng.shuffle(instances)
     return instances
 
 
@@ -313,7 +312,6 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
             )  
         instances += list(itertools.chain.from_iterable(document_instance))
 
-    rng.shuffle(instances)
     return instances
 
 def create_parallel_instances_from_document(
