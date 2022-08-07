@@ -323,6 +323,9 @@ def create_parallel_instances_from_document(
     src_doc = src_documents[idx]
     tgt_doc = tgt_documents[idx]
 
+    if len(src_doc) != len(tgt_doc):
+        return
+
     assert len(src_doc) == len(tgt_doc)
 
     # Account for [CLS], [SEP], [SEP]
