@@ -254,8 +254,9 @@ def create_parallel_instances(src_files, tgt_files, tokenizer, max_seq_length,
                 delayed(create_parallel_instances_from_document) \
                     (src_documents, tgt_documents, doc_index, max_seq_length, short_seq_prob, masked_lm_prob, max_predictions_per_seq, vocab_words, rng) \
                     for doc_index in range(len(src_documents))
-            )  
-        instances += list(itertools.chain.from_iterable(document_instance))
+            )
+        x = [l for l in document_instance if l]
+        instances += list(itertools.chain.from_iterable(x))
 
     rng.shuffle(instances)
     return instances
@@ -321,6 +322,8 @@ def create_parallel_instances_from_document(
 
     src_doc = src_documents[idx]
     tgt_doc = tgt_documents[idx]
+
+    assert len(src_doc) == len(tgt_doc)
 
     # Account for [CLS], [SEP], [SEP]
     max_num_tokens = max_seq_length - 3
@@ -623,10 +626,10 @@ if __name__ == "__main__":
             basename = os.path.basename(parallel_pattern)
 
             # to handle splits
-            basename = basename.split('.')[0]
+            basename, split = basename.split('.')[0], basename.split('.')[1]
             src, tgt = basename.split(',')[0].split('-')
-            src_files.extend(tf.compat.v1.gfile.Glob(f'{parallel_pattern}.{src}'))
-            tgt_files.extend(tf.compat.v1.gfile.Glob(f'{parallel_pattern}.{tgt}'))
+            src_files.extend(tf.compat.v1.gfile.Glob(f'{parallel_pattern}.{src}.{split}'))
+            tgt_files.extend(tf.compat.v1.gfile.Glob(f'{parallel_pattern}.{tgt}.{split}'))
 
         logging.info("*** Reading TLM from input files ***")
         for src, tgt in zip(src_files, tgt_files):
