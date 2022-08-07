@@ -628,8 +628,8 @@ if __name__ == "__main__":
             # to handle splits
             basename, split = basename.split('.')[0], basename.split('.')[1]
             src, tgt = basename.split(',')[0].split('-')
-            src_files.extend(tf.compat.v1.gfile.Glob(f'{parallel_pattern}.{src}.{split}'))
-            tgt_files.extend(tf.compat.v1.gfile.Glob(f'{parallel_pattern}.{tgt}.{split}'))
+            src_files.extend(tf.compat.v1.gfile.Glob(f'{basename}.{src}.{split}'))
+            tgt_files.extend(tf.compat.v1.gfile.Glob(f'{basename}.{tgt}.{split}'))
 
         logging.info("*** Reading TLM from input files ***")
         for src, tgt in zip(src_files, tgt_files):
