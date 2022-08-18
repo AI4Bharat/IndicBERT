@@ -13,9 +13,11 @@ parser.add_argument("--vocab_size", type=int, default=250000)
 parser.add_argument("--output", type=str, default="")
 args = parser.parse_args()
 
+special_tokens = ["[UNK]", "[CLS]", "[SEP]", "[PAD]", "[MASK]", "<as>", "<bd>", "<bn>", "<dg>", "<en>", "<gom>", "<gu>", "<hi>", "<kha>", "<kn>", "<ks>", "<mai>", "<ml>", "<mni>", "<mr>", "<ne>", "<or>", "<pa>", "<sa>", "<sd>", "<sat>", "<ta>", "<te>", "<ur>"]
+
 def main(args):
     tokenizer = Tokenizer(WordPiece(unk_token="[UNK]"))
-    trainer = WordPieceTrainer(vocab_size=args.vocab_size, special_tokens=["[UNK]", "[CLS]", "[SEP]", "[PAD]", "[MASK]"])
+    trainer = WordPieceTrainer(vocab_size=args.vocab_size, special_tokens=special_tokens)
 
     tokenizer.pre_tokenizer = Whitespace()
 
