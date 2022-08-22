@@ -31,6 +31,7 @@ from absl import logging
 from tqdm import tqdm
 from joblib import Parallel, delayed
 import pandas as pd
+from transformers import PreTrainedTokenizerFast
 
 flags = tf.compat.v1.app.flags
 
@@ -46,11 +47,11 @@ flags.DEFINE_string(
     "output_file", None,
     "Output TF example file (or comma-separated list of files).")
 
-flags.DEFINE_string("vocab_file", None,
-                    "The vocabulary file that the BERT model was trained on.")
+flags.DEFINE_string("tokenizer", None,
+                    "The trained tokenizer path")
 
 flags.DEFINE_bool(
-    "do_lower_case", True,
+    "do_lower_case", False,
     "Whether to lower case the input text. Should be True for uncased "
     "models and False for cased models.")
 
@@ -152,7 +153,6 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
 
         total_written += 1
 
-        '''
         if inst_index < 20:
             logging.info("*** Example ***")
             logging.info("tokens: %s" % " ".join(
@@ -167,7 +167,7 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
                     values = feature.float_list.value
                 logging.info(
                     "%s: %s" % (feature_name, " ".join([str(x) for x in values])))
-        '''
+                    
     for writer in writers:
         writer.close()
 
@@ -207,7 +207,7 @@ def create_parallel_instances(src_files, tgt_files, tokenizer, max_seq_length,
                 if not line:
                     src_documents.append([])
 
-                tokens = tokenizer.tokenize(line)
+                tokens = tokenizer.convert_ids_to_tokens(tokenizer.encode(line))
                 if tokens:
                     src_documents[-1].append(tokens)
         src_documents.append([])
@@ -222,7 +222,7 @@ def create_parallel_instances(src_files, tgt_files, tokenizer, max_seq_length,
                 if not line:
                     tgt_documents.append([])
 
-                tokens = tokenizer.tokenize(line)
+                tokens = tokenizer.convert_ids_to_tokens(tokenizer.encode(line))
                 if tokens:
                     tgt_documents[-1].append(tokens)
         tgt_documents.append([])
@@ -240,13 +240,6 @@ def create_parallel_instances(src_files, tgt_files, tokenizer, max_seq_length,
 
     vocab_words = list(tokenizer.vocab.keys())
     instances = []
-    # for _ in range(dupe_factor):
-    #     instances.extend(
-    #         create_parallel_instances_from_document(
-    #             src_documents, tgt_documents, max_seq_length, short_seq_prob,
-    #             masked_lm_prob, max_predictions_per_seq, vocab_words, rng 
-    #         )
-    #     )
 
     # parallel implementation
     for _ in range(dupe_factor):
@@ -260,7 +253,6 @@ def create_parallel_instances(src_files, tgt_files, tokenizer, max_seq_length,
 
     return instances
 
-
 def create_training_instances(input_files, tokenizer, max_seq_length,
                               dupe_factor, short_seq_prob, masked_lm_prob,
                               max_predictions_per_seq, rng):
@@ -273,6 +265,7 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
     # (2) Blank lines between documents. Document boundaries are needed so
     # that we don't use 2 unrelated sentences for attending to each other
     start = time.time()
+    count = 0
     for input_file in input_files:
         with tf.io.gfile.GFile(input_file, "r") as reader:
             while True:
@@ -284,9 +277,13 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
                 # Empty lines are used as document delimiters
                 if not line:
                     all_documents.append([])
-                tokens = tokenizer.tokenize(line)
+                tokens = tokenizer.convert_ids_to_tokens(tokenizer.encode(line))
                 if tokens:
                     all_documents[-1].append(tokens)
+
+                count += 1
+                if count % 1000000 == 0:
+                    print(count)
         all_documents.append([])
     end = time.time()
     logging.info(f'*** time to tokenize: {end-start}')
@@ -297,11 +294,6 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
 
     vocab_words = list(tokenizer.vocab.keys())
     instances = []
-    # for _ in range(dupe_factor):
-    #     instances.extend(
-    #     create_instances_from_document(
-    #         all_documents, max_seq_length, short_seq_prob,
-    #         masked_lm_prob, max_predictions_per_seq, vocab_words, rng))
 
     # parallel implementation
     for _ in range(dupe_factor):
@@ -592,12 +584,11 @@ def truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng):
 if __name__ == "__main__":
     flags.mark_flag_as_required("input_file")
     flags.mark_flag_as_required("output_file")
-    flags.mark_flag_as_required("vocab_file")
+    flags.mark_flag_as_required("tokenizer")
     logging.info("do_whole_word_mask: %s" % FLAGS.do_whole_word_mask)
     logging.set_verbosity(logging.INFO)
 
-    tokenizer = tokenization.FullTokenizer(
-        vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
+    tokenizer = PreTrainedTokenizerFast(tokenizer_file=FLAGS.tokenizer)
 
     input_files = []
     for input_pattern in FLAGS.input_file.split(","):
