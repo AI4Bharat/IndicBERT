@@ -163,6 +163,8 @@ cython_debug/
 *.csv
 *.txt
 *.tfrecord
+*.json
+*.txt
 
 wordpiece_250k/
 sample_data
