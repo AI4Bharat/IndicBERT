@@ -170,3 +170,6 @@ wordpiece_250k/
 sample_data
 random.sh
 datasets
+
+fine-tuning/*/output
+fine-tuning/*/wandb
