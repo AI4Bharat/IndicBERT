@@ -1,9 +1,13 @@
 import argparse
-import wandb
+
 import numpy as np
-from transformers import (AutoModelForTokenClassification, AutoTokenizer,
-                          Trainer, TrainingArguments, set_seed, EarlyStoppingCallback, DataCollatorForTokenClassification)
 from datasets import load_dataset, load_metric
+from transformers import (AutoModelForTokenClassification, AutoTokenizer,
+                          DataCollatorForTokenClassification,
+                          EarlyStoppingCallback, Trainer, TrainingArguments,
+                          set_seed)
+
+import wandb
 
 wandb.init(project="indicxtreme")
 
