@@ -6,7 +6,7 @@ import numpy as np
 from datasets import load_dataset, load_metric
 from tqdm.auto import tqdm
 from transformers import (AutoModelForQuestionAnswering, AutoTokenizer,
-                          Trainer, TrainingArguments)
+                          Trainer, TrainingArguments, set_seed)
 
 import wandb
 
@@ -31,7 +31,10 @@ parser.add_argument("--num_train_epochs", type=int, default=5)
 parser.add_argument("--weight_decay", type=float, default=0.01)
 parser.add_argument("--warmup_ratio", type=float, default=0.1)
 parser.add_argument("--output_dir", type=str, default="output")
+parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
+
+set_seed(args.seed)
 
 def preprocess_training_examples(examples):
     questions = [q.strip() for q in examples["question"]]
