@@ -13,8 +13,8 @@ wandb.init(project="indicxtreme")
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_name", type=str, default="xlm-roberta-base")
-parser.add_argument("--train_data", type=str, default="wikiann")
-parser.add_argument("--eval_data", type=str, default="wikiann.hi")
+parser.add_argument("--train_data", type=str, default="PAN-X.en")
+parser.add_argument("--eval_data", type=str, default="PAN-X.hi")
 parser.add_argument("--do_train", action="store_true")
 parser.add_argument("--do_predict", action="store_true")
 parser.add_argument("--fp16", type=bool, default=True)
@@ -83,7 +83,7 @@ def compute_metrics(p):
     }
 
 metric = load_metric("seqeval")
-dataset =  load_dataset(f"{args.train_data}", "en")
+dataset =  load_dataset("xtreme", f"{args.train_data}")
 
 label_list = dataset["train"].features["ner_tags"].feature.names
 
@@ -166,5 +166,5 @@ elif args.do_predict:
     )
     
     dataset, language = args.eval_data.split('.')
-    dataset =  load_dataset(f"{dataset}", f"{language}")
+    dataset =  load_dataset("xtreme", f"{args.eval_data}")
     zero_shot(dataset)

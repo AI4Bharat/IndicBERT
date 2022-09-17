@@ -14,8 +14,8 @@ wandb.init(project="indicxtreme")
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_name", type=str, default="xlm-roberta-base")
-parser.add_argument("--train_data", type=str, default="squad")
-parser.add_argument("--eval_data", type=str, default="squad")
+parser.add_argument("--train_data", type=str, default="SQuAD")
+parser.add_argument("--eval_data", type=str, default="indicqa.hi")
 parser.add_argument("--metric", type=str, default="squad")
 parser.add_argument("--do_train", action="store_true")
 parser.add_argument("--do_predict", action="store_true")
@@ -173,7 +173,7 @@ def compute_metrics(start_logits, end_logits, features, examples):
 
 
 metric = load_metric(f"{args.metric}")
-dataset_squad =  load_dataset(f"{args.train_data}")
+dataset_squad =  load_dataset("xtreme", f"{args.train_data}")
 # dataset_tydiqa = load_dataset("tydiqa", "secondary_task")
 tokenizer = AutoTokenizer.from_pretrained(f"{args.model_name}", use_auth_token=True)
 model = AutoModelForQuestionAnswering.from_pretrained(f"{args.model_name}", use_auth_token=True)
