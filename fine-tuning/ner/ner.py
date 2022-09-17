@@ -24,7 +24,7 @@ parser.add_argument("--metric_for_best_model", type=str, default="eval_f1")
 parser.add_argument("--label_all_tokens", type=bool, default=True)
 parser.add_argument("--max_seq_length", type=int, default=512)
 parser.add_argument("--learning_rate", type=float, default=2e-5)
-parser.add_argument("--num_train_epochs", type=int, default=5)
+parser.add_argument("--num_train_epochs", type=int, default=10)
 parser.add_argument("--weight_decay", type=float, default=0.01)
 parser.add_argument("--warmup_ratio", type=float, default=0.1)
 parser.add_argument("--output_dir", type=str, default="output")
@@ -34,7 +34,7 @@ args = parser.parse_args()
 set_seed(args.seed)
 
 def tokenize_and_align_labels(examples):
-    tokenized_inputs = tokenizer(examples["tokens"], truncation=True, is_split_into_words=True)
+    tokenized_inputs = tokenizer(examples["tokens"], truncation='longest_first', is_split_into_words=True, max_length=args.max_seq_length)
 
     labels = []
     for i, label in enumerate(examples["ner_tags"]):
