@@ -25,7 +25,7 @@ parser.add_argument("--label_all_tokens", type=bool, default=True)
 parser.add_argument("--max_seq_length", type=int, default=512)
 parser.add_argument("--learning_rate", type=float, default=2e-5)
 parser.add_argument("--num_train_epochs", type=int, default=10)
-parser.add_argument("--weight_decay", type=float, default=0.01)
+parser.add_argument("--weight_decay", type=float, default=0.0)
 parser.add_argument("--warmup_ratio", type=float, default=0.1)
 parser.add_argument("--output_dir", type=str, default="output")
 parser.add_argument("--seed", type=int, default=42)
@@ -123,7 +123,7 @@ if args.do_train:
         load_best_model_at_end=True,
     )
 
-    earlystoppingcallback = EarlyStoppingCallback(early_stopping_patience=2)
+    # earlystoppingcallback = EarlyStoppingCallback(early_stopping_patience=2)
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -132,7 +132,7 @@ if args.do_train:
         tokenizer=tokenizer,
         data_collator=data_collator,
         compute_metrics=compute_metrics,
-        callbacks=[earlystoppingcallback]
+        # callbacks=[earlystoppingcallback]
     )
     trainer.train()
 
