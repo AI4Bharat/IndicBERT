@@ -110,3 +110,34 @@ python /home/cs21d409_cse_iitm_ac_in/IndicBERT/train/run_pretraining.py \
 --tpu_name=indic-bert \
 --tpu_zone=us-east1-d \
 --num_tpu_cores=128
+
+
+
+
+python /nlsasfs/home/ai4bharat/gramesh/fine-tuning/IndicBERT/process_data/create_mlm_data.py \
+    --input_file=/nlsasfs/home/ai4bharat/gramesh/fine-tuning/tagged-mlm/tagged-as.txt \
+    --input_file_type=monolingual \
+    --output_file=/nlsasfs/home/ai4bharat/gramesh/fine-tuning/tagged-mlm/as.tfrecord \
+    --tokenizer=/nlsasfs/home/ai4bharat/gramesh/fine-tuning/IndicBERT/tokenization/wp_land_id_250k/config.json \
+    --max_seq_length=512 \
+    --max_predictions_per_seq=77 \
+    --do_whole_word_mask=True \
+    --masked_lm_prob=0.15 \
+    --random_seed=12345 \
+    --dupe_factor 1 \
+    --num_workers 128
+
+
+
+python /nlsasfs/home/ai4bharat/gramesh/fine-tuning/IndicBERT/process_data/create_mlm_data.py \
+    --input_file=/nlsasfs/home/ai4bharat/gramesh/fine-tuning/sam-splits/shuf-0 \
+    --input_file_type=parallel \
+    --output_file=/nlsasfs/home/ai4bharat/gramesh/fine-tuning/sam-tfrecords/shuf-0.tfrecord \
+    --tokenizer=/nlsasfs/home/ai4bharat/gramesh/fine-tuning/IndicBERT/tokenization/wp_land_id_250k/config.json \
+    --max_seq_length=512 \
+    --max_predictions_per_seq=77 \
+    --do_whole_word_mask=True \
+    --masked_lm_prob=0.15 \
+    --random_seed=12345 \
+    --dupe_factor 1 \
+    --num_workers 128
