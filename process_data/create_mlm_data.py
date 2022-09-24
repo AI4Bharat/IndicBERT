@@ -196,6 +196,7 @@ def create_parallel_instances(src_files, tgt_files, tokenizer, max_seq_length,
     src_documents = [[]]
     tgt_documents = [[]]
     start = time.time()
+    count = 0
     for src_file, tgt_file in zip(src_files, tgt_files):
         with tf.io.gfile.GFile(src_file, "r") as reader:
             while True:
@@ -210,8 +211,13 @@ def create_parallel_instances(src_files, tgt_files, tokenizer, max_seq_length,
                 tokens = tokenizer.convert_ids_to_tokens(tokenizer.encode(line))
                 if tokens:
                     src_documents[-1].append(tokens)
+
+                count += 1
+                if count % 1000000 == 0:
+                    print(count)
         src_documents.append([])
 
+        count = 0
         with tf.io.gfile.GFile(tgt_file, "r") as reader:
             while True:
                 line = tokenization.convert_to_unicode(reader.readline())
@@ -225,6 +231,10 @@ def create_parallel_instances(src_files, tgt_files, tokenizer, max_seq_length,
                 tokens = tokenizer.convert_ids_to_tokens(tokenizer.encode(line))
                 if tokens:
                     tgt_documents[-1].append(tokens)
+
+                count += 1
+                if count % 1000000 == 0:
+                    print(count)
         tgt_documents.append([])
     end = time.time()
     logging.info(f'*** time to tokenize: {end-start}')
@@ -610,18 +620,24 @@ if __name__ == "__main__":
                                         FLAGS.max_predictions_per_seq, output_files)
 
     elif FLAGS.input_file_type == "parallel":
-        # expected file pattern: `en-as` so that we can extract en-as.as, en-as.en
+        # expected file pattern: `file` so that we can extract file.en, file.lang
         src_files = []
         tgt_files = []
         for parallel_pattern in FLAGS.input_file.split(","):
 
-            basename = os.path.basename(parallel_pattern)
+            # basename = os.path.basename(parallel_pattern)
 
             # to handle splits
-            basename, split = basename.split('.')[0], basename.split('.')[1]
-            src, tgt = basename.split(',')[0].split('-')
-            src_files.extend(tf.compat.v1.gfile.Glob(f'{basename}.{src}.{split}'))
-            tgt_files.extend(tf.compat.v1.gfile.Glob(f'{basename}.{tgt}.{split}'))
+            # basename, split = basename.split('.')[0], basename.split('.')[1]
+            # src, tgt = basename.split(',')[0].split('-')
+
+            # 50% make `en` as sent1 and 50% time make `lang` as sent1
+            if random.uniform(0,1) > 0.5:
+                src_files.extend(tf.compat.v1.gfile.Glob(f'{parallel_pattern}.en'))
+                tgt_files.extend(tf.compat.v1.gfile.Glob(f'{parallel_pattern}.lang'))
+            else:
+                src_files.extend(tf.compat.v1.gfile.Glob(f'{parallel_pattern}.lang'))
+                tgt_files.extend(tf.compat.v1.gfile.Glob(f'{parallel_pattern}.en'))
 
         logging.info("*** Reading TLM from input files ***")
         for src, tgt in zip(src_files, tgt_files):

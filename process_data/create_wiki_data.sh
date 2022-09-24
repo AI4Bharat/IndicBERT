@@ -4,9 +4,9 @@ stop=$2
 
 create_data(){
 	python /nlsasfs/home/ai4bharat/gramesh/fine-tuning/IndicBERT/process_data/create_mlm_data.py \
-		--input_file=/nlsasfs/home/ai4bharat/gramesh/fine-tuning/tlm-splits/xlit-$1 \
+		--input_file=/nlsasfs/home/ai4bharat/gramesh/fine-tuning/wiki-splits/shuf-$1 \
 		--input_file_type=parallel \
-		--output_file=/nlsasfs/home/ai4bharat/gramesh/fine-tuning/tlm-tfrecords/xlit-$1.tfrecord \
+		--output_file=/nlsasfs/home/ai4bharat/gramesh/fine-tuning/wiki-tfrecords/shuf-$1.tfrecord \
 		--tokenizer=/nlsasfs/home/ai4bharat/gramesh/fine-tuning/IndicBERT/tokenization/wp_land_id_250k/config.json \
 		--max_seq_length=512 \
 		--max_predictions_per_seq=77 \
