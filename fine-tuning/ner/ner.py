@@ -14,7 +14,8 @@ wandb.init(project="indicxtreme")
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_name", type=str, default="xlm-roberta-base")
 parser.add_argument("--train_data", type=str, default="PAN-X.en")
-parser.add_argument("--eval_data", type=str, default="PAN-X.hi")
+parser.add_argument("--eval_data", type=str, default="hi")
+parser.add_argument("--benchmark", type=str, default="naamapadam")
 parser.add_argument("--do_train", action="store_true")
 parser.add_argument("--do_predict", action="store_true")
 parser.add_argument("--fp16", type=bool, default=True)
@@ -165,6 +166,8 @@ elif args.do_predict:
         compute_metrics=compute_metrics,
     )
     
-    dataset, language = args.eval_data.split('.')
-    dataset =  load_dataset(f"{dataset}", f"{language}")
+    if args.benchmark == "naamapadam":
+        dataset = load_dataset(f"ai4bharat/{args.benchmark}", f"{args.eval_data}")
+    else:
+        dataset = load_dataset("xtreme", f"{args.eval_data}")
     zero_shot(dataset)
