@@ -141,3 +141,16 @@ python /nlsasfs/home/ai4bharat/gramesh/fine-tuning/IndicBERT/process_data/create
     --random_seed=12345 \
     --dupe_factor 1 \
     --num_workers 128
+
+# mlm + sam + wiki
+python /home/cs21d409_cse_iitm_ac_in/IndicBERT/train/run_pretraining.py \
+--input_file=gs://indic-bert/aug-24-tfrecords/* \
+--output_dir=gs://indic-bert/sep-28-mlm-wiki/ \
+--do_train=True \
+--bert_config_file=/home/cs21d409_cse_iitm_ac_in/IndicBERT/config.json \
+--train_batch_size=4096 --max_seq_length=512 \
+--max_predictions_per_seq=77 --num_train_steps=1000000 \
+--num_warmup_steps=50000 --learning_rate=5e-4 \
+--save_checkpoints_steps=50000 --use_tpu=True \
+--tpu_name=indic-bert --tpu_zone=us-east1-d \
+--num_tpu_cores=128
