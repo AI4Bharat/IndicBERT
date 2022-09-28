@@ -169,5 +169,6 @@ elif args.do_predict:
     if args.benchmark == "naamapadam":
         dataset = load_dataset(f"ai4bharat/{args.benchmark}", f"{args.eval_data}")
     else:
-        dataset = load_dataset("xtreme", f"{args.eval_data}")
+        bench, lang = args.eval_data.split(".")[0], args.eval_data.split(".")[1]
+        dataset = load_dataset(bench, lang)
     zero_shot(dataset)
