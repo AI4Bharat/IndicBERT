@@ -35,7 +35,14 @@ do
 python xnli/xnli.py --model_name <MODEL> --do_predict --eval_data $lang
 done
 
+# FLORES retrieval
 for lang in asm_Beng ben_Beng guj_Gujr hin_Deva kan_Knda kas_Arab mai_Deva mal_Mlym mar_Deva mni_Beng npi_Deva ory_Orya pan_Guru san_Deva sat_Olck tam_Taml tel_Telu urd_Arab
 do
 python retrieval/retrieval.py --model_name <MODEL> --do_predict --src_file $lang
+done
+
+# Sentiment eval
+for lang in as bn gu hi kn ml mr or pa ta te ur
+do
+python sentiment/sentiment.py --model_name <MODEL> --do_predict --eval_data $lang
 done
