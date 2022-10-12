@@ -36,6 +36,14 @@ def preprocess_function(examples):
                     examples["sentence2"],
                     truncation=True,
                     padding="max_length",
+                    max_length=512
+                    )
+
+def x_preprocess_function(examples):
+    return tokenizer(examples["english"],
+                    examples["sentence2"],
+                    truncation=True,
+                    padding="max_length",
                     max_length=args.max_seq_length
                     )
 
@@ -116,5 +124,5 @@ if args.do_predict:
         compute_metrics=compute_metrics,
     )
     
-    dataset = load_dataset("ai4bharat/IndicParaphrase", f"{args.eval_data}")
+    dataset = load_dataset("ai4bharat/IndicXParaphrase", f"{args.eval_data}")
     zero_shot(dataset)
