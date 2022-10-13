@@ -46,3 +46,9 @@ for lang in as bn gu hi kn ml mr or pa ta te ur
 do
 python sentiment/sentiment.py --model_name <MODEL> --do_predict --eval_data $lang
 done
+
+# paraphrase eval
+for lang in as bn hi kn ml mr or pa te
+do
+python paraphrase/paraphrase.py --model_name <MODEL> --do_predict --eval_data $lang
+done
