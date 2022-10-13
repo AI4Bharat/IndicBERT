@@ -124,5 +124,6 @@ if args.do_predict:
         compute_metrics=compute_metrics,
     )
     
-    dataset = load_dataset("ai4bharat/IndicXParaphrase", f"{args.eval_data}")
+    dataset = load_dataset("ai4bharat/IndicXParaphrase", f"{args.eval_data}", use_auth_token=True)
+    # dataset = load_dataset("paws-x", f"{args.eval_data}")
     zero_shot(dataset)
