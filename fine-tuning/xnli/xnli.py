@@ -39,6 +39,15 @@ def preprocess_function(examples):
                     max_length=args.max_seq_length
                     )
 
+def test_mapper(example):
+    if example["gold_label"] == "contradiction":
+        example["gold_label"] = 2
+    elif example["gold_label"] == "entailment":
+        example["gold_label"] = 0
+    else:
+        example["gold_label"] = 1
+    return {"premise": example["sentence1"], "hypothesis": example["sentence2"], "label": example["gold_label"]}
+
 def compute_metrics(eval_pred):
     predictions, labels = eval_pred
     predictions = np.argmax(predictions, axis=1)
@@ -117,7 +126,9 @@ if args.do_predict:
     )
     
     if args.eval_data == "ur":
-        dataset = load_dataset("xnli", f"{args.eval_data}")
+        dataset = load_dataset("xtreme", "XNLI")
+        dataset = dataset.filter(lambda x: x['language'].startswith('ur'))
+        dataset = dataset.map(test_mapper)
     else:
         dataset = load_dataset("Divyanshu/indicxnli", f"{args.eval_data}")
     zero_shot(dataset)
