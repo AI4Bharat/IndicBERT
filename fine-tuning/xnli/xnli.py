@@ -235,5 +235,4 @@ if args.do_predict:
 
     if args.og_lang in supported_xlit_langs:
         dataset = dataset.map(lambda x: transliterate(x, args.og_lang))
-    print(dataset['test'][0])
     zero_shot(dataset)

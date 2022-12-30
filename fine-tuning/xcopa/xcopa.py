@@ -335,5 +335,4 @@ if args.do_predict:
     dataset = load_dataset("ai4bharat/IndicCOPA", f"{args.eval_data}", use_auth_token=True)
     if args.og_lang in supported_xlit_langs:
         dataset = dataset.map(lambda x: transliterate(x, args.og_lang))
-    print(dataset['test'][0])
     zero_shot(dataset)
