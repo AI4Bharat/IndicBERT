@@ -22,6 +22,9 @@ The list of tasks are as follows:
 - **MASSIVE** - [[Dataset](https://github.com/alexa/massive#accessing-and-processing-the-data)] - This in an intent classification and slot-filling dataset created using user queries collected by Amazon Alexa for 7 Indic languages. Created by FitzGerald et. al. in [this paper](https://arxiv.org/abs/2204.08582)
 - **FLORES** - [[Dataset](https://huggingface.co/datasets/facebook/flores)] - To evaluate the retrieval capabilities of models, we include the Indic parts of the FLORES-101 dataset. Available in 18 Indic languages. Created by NLLB Team et. al. in [this paper](https://arxiv.org/abs/2207.04672)
 
+## IndicCorp v2
+🔜 Coming soon...
+
 ## LICENSE
 All the datasets created as part of this work will be released under a [CC-0 license](https://creativecommons.org/publicdomain/zero/1.0) and all models \& code will be release under an [MIT license](https://github.com/ai4bharat/IndicBERT/blob/main/LICENSE)
 
