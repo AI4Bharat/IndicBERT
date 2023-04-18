@@ -33,7 +33,111 @@ A multilingual language model trained on IndicCorp v2 and evaluated on IndicXTRE
     - +Back-Translation [[Model](https://huggingface.co/ai4bharat/IndicBERTv2-MLM-Back-TLM)] - TLM as an additional objective by translating the Indic parts of IndicCorp v2 dataset into English w/ IndicTrans model [[Model](https://github.com/AI4Bharat/indicTrans#download-model)]
 - IndicBERT-SS [[Model](https://huggingface.co/ai4bharat/IndicBERTv2-SS)] - To encourage better lexical sharing among languages we convert the scripts from Indic languages to Devanagari and train a BERT style model with the MLM objective
 
+## Run Pretraining
 
+### Setup
+The current BERT Preprocessig code needs to run in Tensorflow v2. Create a new conda environment and set it up as follows:
+```shell
+conda create -n tpu_data_prep python=3.7
+
+pip install tokenizers transformers tqdm joblib indic-nlp-library
+conda install tensorflow==2.3.0
+```
+
+### Train Tokenizer
+Train a WordPiece Tokenizer to preprocess the data. The following command trains a tokenizer and saves it in the specified path.
+
+Arguments:
+- INPUT: /path/to/input.txt
+- OUTPUT: /path/to/output
+- VOCAB_SIZE: size of the vocabulary
+
+```shell
+python IndicBERT/tokenization/build_tokenizer.py \
+    --input_file=$INPUT \
+    --output_dir=$OUTPUT \
+    --vocab_size=$VOCAB_SIZE
+```
+
+### Preprocess Data
+
+Run the following command after update the required paths in the script:
+
+```shell
+python IndicBERT/process_data/create_mlm_data.py \
+    --input_file=$INPUT \
+    --output_file=$OUTPUT \
+    --input_file_type=$DATA_TYPE \
+    --tokenizer=$TOKENIZER_PATH \
+    --max_seq_length=$MAX_SEQ_LEN \
+    --max_predictions_per_seq=$MAX_PRED \
+    --do_whole_word_mask=$WHOLE_WORD_MASK \
+    --masked_lm_prob=$MASK_PROB \
+    --random_seed=$SEED \
+    --dupe_factor=$DUPE_FACTOR \
+```
+- DATA_TYPE: `monolingual` or `parallel`
+    - `monolingual`: if the input file is a monolingual corpus
+        - INPUT:/path/to/input.txt 
+            - (one sentence per line, empty line between documents)
+            - can take multiple files as input, separated by comma
+    - `parallel`: if the input file is a parallel corpus
+        - INPUT:/path/to/input
+            - (one sentence per line)
+            - the input directory should contain two files, `input.en` and `input.lang`
+- OUTPUT:/path/to/output.tfrecord
+- TOKENIZER_PATH: /path/to/tokenizer/config.json
+- MAX_SEQ_LEN: maximum sequence length, generally 512
+- MAX_PRED: maximum number of tokens to mask in a sequence
+- WHOLE_WORD_MASK: whether to mask whole words or not
+- MASK_PROB: probability of masking a token
+- DUPE_FACTOR: number of times to duplicate the input data
+
+### Pre-train
+The BERT Pretraining code is a modified version of [Google BERT Repo](https://github.com/google-research/bert), without NSP and customisation to support parallel data. The training code need to run on Tensorflow v1. Create a new conda environment and set it up as follows:
+```shell
+conda env create --name bert_pretraining
+conda activate bert_pretraining
+conda install -c conda-forge tensorflow==1.14
+
+```
+
+
+Run the following command for pretraining:
+```shell
+python IndicBERT/train/run_pretraining.py \
+--input_file=$INPUTS \
+--output_dir=$OUTPUTS \
+--do_train=True \
+--bert_config_file=$BERT_CONFIG \
+--train_batch_size=$BS \
+--max_seq_length=$MAX_SEQ_LEN \
+--max_predictions_per_seq=$MAX_PRED \
+--num_train_steps=$TRAIN_STEPS \
+--num_warmup_steps=$WARMUP \
+--learning_rate=$LR \
+--save_checkpoints_steps=$SAVE_EVERY \
+--use_tpu=True \
+--tpu_name=$TPU_NAME \
+--tpu_zone=$TPU_ZONE \
+--num_tpu_cores=$TPU_CORES
+```
+> ***Note that to run the pretraining on TPUs, the input data and output directory should be on Google Cloud Storage***
+
+Arguments:
+- INPUTS: gs://path/to/input/tfrecords/*
+- OUTPUTS: gs://path/to/output
+- BERT_CONFIG: /path/to/bert_config.json
+- BS: batch size, usually `4096`
+- MAX_SEQ_LEN: `should be same as the preprocessing step`
+- MAX_PRED: `should be same as the preprocessing step`
+- TRAIN_STEPS: number of training steps, usually `1000000`
+- WARMUP: number of warmup steps, usually `10000`
+- LR: learning rate, usually `5e-4`
+- SAVE_EVERY: save checkpoints every `n` steps
+- TPU_NAME: name of the TPU
+- TPU_ZONE: zone of the TPU
+- TPU_CORES: number of TPU cores
 
 ## LICENSE
 All the datasets created as part of this work will be released under a [CC-0 license](https://creativecommons.org/publicdomain/zero/1.0) and all models \& code will be release under an [MIT license](https://github.com/ai4bharat/IndicBERT/blob/main/LICENSE)
