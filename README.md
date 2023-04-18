@@ -9,6 +9,12 @@ This repository contains the code of the paper titled "IndicXTREME: A Multi-Task
   </a>
 </p>
 
+[**Benchmark**](#indicxtreme) | [**Corpus**](#indiccorp-v2) |
+[**Models**](#indicbert) |
+[**Pretraining**](#pre-train) |
+[**Fine-tuning**](#run-fine-tuning) |
+[**Paper**](https://arxiv.org/abs/2212.05409)
+
 ## IndicXTREME
 IndicXTREME benchmark includes 9 tasks that can be broadly grouped into sentence classification (5), structure prediction (2), question answering (1), and sentence retrieval (1).
 
