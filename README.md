@@ -139,6 +139,25 @@ Arguments:
 - TPU_ZONE: zone of the TPU
 - TPU_CORES: number of TPU cores
 
+## Run Fine-tuning
+Fine-tuning scripts are based on transformers library. Create a new conda environment and set it up as follows:
+```shell
+conda create -n finetuning python=3.9
+pip install -r requirements.txt
+```
+
+All the tasks follow the same structure, please check individual files for detailed hyper-parameter choices. The following command runs the fine-tuning for a task:
+```shell
+python IndicBERT/fine-tuning/$TASK_NAME/$TASK_NAME.py \
+    --model_name_or_path=$MODEL_NAME \
+    --do_train
+```
+Arguments:
+- MODEL_NAME: name of the model to fine-tune, can be a local path or a model from the [HuggingFace Model Hub](https://huggingface.co/models)
+- TASK_NAME: one of [`ner, paraphrase, qa, sentiment, xcopa, xnli, flores`]
+
+> For MASSIVE task, please use the instrction provided in the [official repository](https://github.com/alexa/massive) 
+
 ## LICENSE
 All the datasets created as part of this work will be released under a [CC-0 license](https://creativecommons.org/publicdomain/zero/1.0) and all models \& code will be release under an [MIT license](https://github.com/ai4bharat/IndicBERT/blob/main/LICENSE)
 
