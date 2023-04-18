@@ -25,6 +25,16 @@ The list of tasks are as follows:
 ## IndicCorp v2
 🔜 Coming soon...
 
+## IndicBERT
+A multilingual language model trained on IndicCorp v2 and evaluated on IndicXTREME benchmark. The model has 278M parameters and is available in 23 Indic languages and English. The models are trained with various objectives and datasets. The list of models are as follows:
+
+- IndicBERT-MLM [[Model](https://huggingface.co/ai4bharat/IndicBERTv2-MLM-only)] - A vanilla BERT style model trained on IndicCorp v2 with the MLM objective
+    - +Samanantar [[Model](https://huggingface.co/ai4bharat/IndicBERTv2-MLM-Sam-TLM)] - TLM as an additional objective with Samanantar Parallel Corpus [[Paper](https://aclanthology.org/2022.tacl-1.9)] | [[Dataset](https://huggingface.co/datasets/ai4bharat/samanantar)]
+    - +Back-Translation [[Model](https://huggingface.co/ai4bharat/IndicBERTv2-MLM-Back-TLM)] - TLM as an additional objective by translating the Indic parts of IndicCorp v2 dataset into English w/ IndicTrans model [[Model](https://github.com/AI4Bharat/indicTrans#download-model)]
+- IndicBERT-SS [[Model](https://huggingface.co/ai4bharat/IndicBERTv2-SS)] - To encourage better lexical sharing among languages we convert the scripts from Indic languages to Devanagari and train a BERT style model with the MLM objective
+
+
+
 ## LICENSE
 All the datasets created as part of this work will be released under a [CC-0 license](https://creativecommons.org/publicdomain/zero/1.0) and all models \& code will be release under an [MIT license](https://github.com/ai4bharat/IndicBERT/blob/main/LICENSE)
 
