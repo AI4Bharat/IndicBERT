@@ -1,9 +1,9 @@
-# IndicXTREME: A Multi-Task Benchmark For Evaluating Indic Languages
+# Towards Leaving No Indic Language Behind: Building Monolingual Corpora, Benchmark and Models for Indic Languages
 
-This repository contains the code of the paper titled "IndicXTREME: A Multi-Task Benchmark For Evaluating Indic Languages"
+This repository contains the code and other resources for the paper published at ACL 2023.
 
 <p align="center">
-  <!-- <a href=""><img src="https://img.shields.io/badge/XXX%20-2023-blue"></a> -->
+  <a href=""><img src="https://img.shields.io/badge/ACL%20-2023-blue"></a>
   <a href="https://github.com/ai4bharat/IndicBERT/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-green">
   </a>
