@@ -171,8 +171,8 @@ All the datasets created as part of this work will be released under a [CC-0 lic
 ## Citation
 
 ```
-@article{Doddapaneni2022IndicXTREMEAM,
-  title={IndicXTREME: A Multi-Task Benchmark For Evaluating Indic Languages},
+@article{Doddapaneni2022towards,
+  title={Towards Leaving No Indic Language Behind: Building Monolingual Corpora, Benchmark and Models for Indic Languages},
   author={Sumanth Doddapaneni and Rahul Aralikatte and Gowtham Ramesh and Shreyansh Goyal and Mitesh M. Khapra and Anoop Kunchukuttan and Pratyush Kumar},
   journal={ArXiv},
   year={2022},
