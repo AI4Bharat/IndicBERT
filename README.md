@@ -29,7 +29,20 @@ The list of tasks are as follows:
 - **FLORES** - [[Dataset](https://huggingface.co/datasets/facebook/flores)] - To evaluate the retrieval capabilities of models, we include the Indic parts of the FLORES-101 dataset. Available in 18 Indic languages. Created by NLLB Team et. al. in [this paper](https://arxiv.org/abs/2207.04672)
 
 ## IndicCorp v2
-🔜 Coming soon...
+| Language | Download Link                                                                                         | Language  | Download Link                                                                                         |
+|----------|-------------------------------------------------------------------------------------------------------|-----------|-------------------------------------------------------------------------------------------------------|
+| Assamese | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/as_arts.zip) | Malayalam | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/ml_arts.zip) |
+| Bodo     | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/brx_arts.zip) | Manipuri  | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/mni_arts.zip) |
+| Bengali  | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/bn_arts.zip) | Marathi   | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/mr_arts.zip) |
+| Dogri    | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/doi_arts.zip) | Nepali    | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/ne_arts.zip) |
+| English  | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/en_arts.zip) | Odia      | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/or_arts.zip) |
+| Konkani  | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/gom_arts.zip) | Punjabi   | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/pa_arts.zip) |
+| Gujarati | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/gu_arts.zip) | Sanskrit  | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/sa_arts.zip) |
+| Hindi    | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/hi_arts.zip) | Santali   | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/sat_arts.zip) |
+| Khasi    | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/kha_arts.zip) | Sindhi    | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/sd_arts.zip) |
+| Kannada  | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/kn_arts.zip) | Tamil     | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/ta_arts.zip) |
+| Kashmiri | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/ks_arts.zip) | Telugu    | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/te_arts.zip) |
+| Maithili | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/mai_arts.zip) | Urdu      | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indiccorp_v5_articles/ur_arts.zip) |
 
 ## IndicBERT
 A multilingual language model trained on IndicCorp v2 and evaluated on IndicXTREME benchmark. The model has 278M parameters and is available in 23 Indic languages and English. The models are trained with various objectives and datasets. The list of models are as follows:
