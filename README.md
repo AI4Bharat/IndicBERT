@@ -29,20 +29,7 @@ The list of tasks are as follows:
 - **FLORES** - [[Dataset](https://huggingface.co/datasets/facebook/flores)] - To evaluate the retrieval capabilities of models, we include the Indic parts of the FLORES-101 dataset. Available in 18 Indic languages. Created by NLLB Team et. al. in [this paper](https://arxiv.org/abs/2207.04672)
 
 ## IndicCorp v2
-| Language | Download Link                                                                                         | Language  | Download Link                                                                                         |
-|----------|-------------------------------------------------------------------------------------------------------|-----------|-------------------------------------------------------------------------------------------------------|
-| Assamese | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/as.txt) | Malayalam | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/ml.txt) |
-| Bodo     | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/bd.txt) | Manipuri  | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/mni.txt) |
-| Bengali  | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/bn.txt) | Marathi   | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/mr.txt) |
-| Dogri    | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/dg.txt) | Nepali    | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/ne.txt) |
-| English  | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/en.txt) | Odia      | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/or.txt) |
-| Konkani  | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/gom.txt) | Punjabi   | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/pa.txt) |
-| Gujarati | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/gu.txt) | Sanskrit  | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/sa.txt) |
-| Hindi    | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/hi.txt) | Santali   | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/sat.txt) |
-| Khasi    | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/kha.txt) | Sindhi    | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/sd.txt) |
-| Kannada  | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/kn.txt) | Tamil     | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/ta.txt) |
-| Kashmiri | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/ks.txt) | Telugu    | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/te.txt) |
-| Maithili | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/mai.txt) | Urdu      | [Download](https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/indic-corp-frozen-for-the-paper-oct-2022/ur.txt) |
+The dataset is now available on [HuggingFace](https://huggingface.co/datasets/ai4bharat/IndicCorpV2)
 
 ## IndicBERT
 A multilingual language model trained on IndicCorp v2 and evaluated on IndicXTREME benchmark. The model has 278M parameters and is available in 23 Indic languages and English. The models are trained with various objectives and datasets. The list of models are as follows:
