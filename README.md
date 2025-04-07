@@ -60,8 +60,8 @@ Arguments:
 
 ```shell
 python IndicBERT/tokenization/build_tokenizer.py \
-    --input_file=$INPUT \
-    --output_dir=$OUTPUT \
+    --input=$INPUT \
+    --output=$OUTPUT \
     --vocab_size=$VOCAB_SIZE
 ```
 
@@ -71,7 +71,7 @@ Run the following command after update the required paths in the script:
 
 ```shell
 python IndicBERT/process_data/create_mlm_data.py \
-    --input_file=$INPUT \
+    --input=$INPUT \
     --output_file=$OUTPUT \
     --input_file_type=$DATA_TYPE \
     --tokenizer=$TOKENIZER_PATH \
